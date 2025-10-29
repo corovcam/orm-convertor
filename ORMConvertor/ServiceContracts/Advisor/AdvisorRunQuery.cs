@@ -8,5 +8,6 @@ namespace OrmConvertor.ServiceContracts.Advisor;
 public record AdvisorRunQuery(
     string Id,
     ConversionSource Query,
-    int Weight
+    int Weight,
+    AdvisorQueryWorkload? Workload = null
 );

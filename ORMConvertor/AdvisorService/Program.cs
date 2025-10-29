@@ -1,5 +1,6 @@
 using AdvisorBenchmarking;
 using AdvisorService.Services;
+using Microsoft.Extensions.Logging;
 using OrmConvertor.ServiceContracts.Advisor;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,6 +8,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+builder.Services.AddSingleton(provider =>
+{
+    var logger = provider.GetService<ILogger<BenchmarkProfileStore>>();
+    return new BenchmarkProfileStore(AppContext.BaseDirectory, logger);
+});
+builder.Services.AddSingleton<IBenchmarkProfileAdapter, MongoMongooseBenchmarkAdapter>();
+builder.Services.AddSingleton<IBenchmarkProfileAdapter, Neo4jOgmBenchmarkAdapter>();
+builder.Services.AddSingleton<IBenchmarkRunner, RoslynBenchmarkRunner>();
+builder.Services.AddSingleton<IBenchmarkRunner, ProfiledBenchmarkRunner>();
 builder.Services.AddSingleton<IBenchmarkExecutor, BenchmarkExecutor>();
 builder.Services.AddSingleton<IAdvisorRunCoordinator, AdvisorRunCoordinator>();
 

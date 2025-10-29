@@ -5,6 +5,12 @@ import { ConvertRequest, ConvertResponse } from "../model/convert";
 import { ContentKind } from "../model/content-type";
 import { OrmTechnology } from "../model/orm-type";
 import { RequiredContentDefinition } from "../model/required-content";
+import {
+  AdvisorFrameworkDescriptor,
+  AdvisorMetricPreset,
+  AdvisorRunRequest,
+  AdvisorRunResult,
+} from "../model/advisor";
 
 @Injectable({ providedIn: "root" })
 export class OrmService {
@@ -24,6 +30,14 @@ export class OrmService {
     return this.http.get<OrmTechnology[]>(`${this.base}/orm-technologies`);
   }
 
+  getAdvisorFrameworks(): Observable<AdvisorFrameworkDescriptor[]> {
+    return this.http.get<AdvisorFrameworkDescriptor[]>(`${this.base}/advisor/frameworks`);
+  }
+
+  getAdvisorMetricPresets(): Observable<AdvisorMetricPreset[]> {
+    return this.http.get<AdvisorMetricPreset[]>(`${this.base}/advisor/metric-presets`);
+  }
+
   getContentKinds(): Observable<ContentKind[]> {
     return this.http.get<ContentKind[]>(`${this.base}/content-kinds`);
   }
@@ -34,5 +48,9 @@ export class OrmService {
 
   convert(req: ConvertRequest): Observable<ConvertResponse> {
     return this.http.post<ConvertResponse>(`${this.base}/convert`, req);
+  }
+
+  runAdvisor(req: AdvisorRunRequest): Observable<AdvisorRunResult> {
+    return this.http.post<AdvisorRunResult>(`${this.base}/advisor/run`, req);
   }
 }

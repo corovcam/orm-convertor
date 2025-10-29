@@ -11,10 +11,10 @@ namespace AdvisorBenchmarking;
 
 internal static class DapperBenchmarkHarnessBuilder
 {
-    public static BenchmarkSource Build(
-        IReadOnlyList<ConversionSource> sources,
-        string connectionString)
+    public static BenchmarkSource Build(BenchmarkExecutionContext context)
     {
+        var sources = context.Sources;
+        string connectionString = context.ConnectionString;
         // Parse entity definitions up front so the generated harness can compile them alongside the benchmark.
         var entityInfos = ExtractEntityInfos(sources, connectionString);
         if (entityInfos.Count == 0)

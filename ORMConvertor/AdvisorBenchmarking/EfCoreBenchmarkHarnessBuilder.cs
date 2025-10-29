@@ -14,10 +14,10 @@ namespace AdvisorBenchmarking;
 
 internal static class EfCoreBenchmarkHarnessBuilder
 {
-    public static BenchmarkSource Build(
-        IReadOnlyList<ConversionSource> sources,
-        string connectionString)
+    public static BenchmarkSource Build(BenchmarkExecutionContext context)
     {
+        var sources = context.Sources;
+        string connectionString = context.ConnectionString;
         // Entities are shared across translated outputs. We load them once so the DbContext can register each type.
         var entityInfos = ExtractEntityInfos(sources, connectionString);
         if (entityInfos.Count == 0)

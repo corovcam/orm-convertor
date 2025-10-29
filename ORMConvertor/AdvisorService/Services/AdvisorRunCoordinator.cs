@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using AdvisorBenchmarking;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -18,13 +20,17 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
     [
         "dapper",
         "nhibernate",
-        "ef-core"
+        "ef-core",
+        "mongo-mongoose",
+        "neo4j-ogm"
     ];
 
     private static readonly string[] SupportedFrameworks =
     [
         "dapper",
-        "ef-core"
+        "ef-core",
+        "mongo-mongoose",
+        "neo4j-ogm"
     ];
 
     public AdvisorRunCoordinator(
@@ -119,10 +125,17 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
                 else
                 {
                     var sources = ComposeSources(request.Entities, query.Query);
-                    artifacts = ConversionHandler.Convert(
-                        request.SourceOrmId,
-                        framework,
-                        sources);
+                    try
+                    {
+                        artifacts = ConversionHandler.Convert(
+                            request.SourceOrmId,
+                            framework,
+                            sources);
+                    }
+                    catch (NotSupportedException)
+                    {
+                        artifacts = sources;
+                    }
                 }
 
                 perFramework[framework] = artifacts;
@@ -184,15 +197,98 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
                     throw new InvalidOperationException($"Missing translation for query '{query.Id}' and framework '{framework}'.");
                 }
 
-                var measurement = benchmarkExecutor.Execute(framework, sources, connectionString);
+                var metadata = BuildBenchmarkMetadata(request, query);
+                var context = new BenchmarkExecutionContext(
+                    framework,
+                    sources,
+                    connectionString,
+                    query.Id,
+                    metadata);
+                var measurement = benchmarkExecutor.Execute(context);
                 perFramework[framework] = measurement;
-                logger.LogInformation("Benchmark {QueryId} on {Framework}: mean {Mean} ms, memory {Memory} bytes.", query.Id, framework, measurement.MeanDurationMilliseconds, measurement.AllocatedBytes);
+                logger.LogInformation(
+                    "Benchmark {QueryId} on {Framework}: latency {Latency} {LatencyUnit}, memory {Memory} {MemoryUnit}, consistency {Consistency}, cost {Cost} {CostUnit}.",
+                    query.Id,
+                    framework,
+                    measurement.Latency.Value,
+                    measurement.Latency.Unit,
+                    measurement.Memory.Value,
+                    measurement.Memory.Unit,
+                    measurement.Consistency.Value,
+                    measurement.Cost.Value,
+                    measurement.Cost.Unit);
             }
 
             results[query.Id] = perFramework;
         }
 
         return results;
+    }
+
+    private static IReadOnlyDictionary<string, string>? BuildBenchmarkMetadata(
+        AdvisorRunRequest request,
+        AdvisorRunQuery query)
+    {
+        var metadata = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        if (query.Workload?.WorkloadCategory is { Length: > 0 } category)
+        {
+            metadata["workload-category"] = category;
+        }
+
+        if (query.Workload?.QueryShape is { Length: > 0 } shape)
+        {
+            metadata["query-shape"] = shape;
+        }
+
+        if (request.Workload?.ConsistencyPreference is { Length: > 0 } consistency)
+        {
+            metadata["consistency-preference"] = consistency;
+        }
+
+        return metadata.Count == 0 ? null : metadata;
+    }
+
+    private static AdvisorMetricWeights ResolveMetricWeights(AdvisorRunRequest request) =>
+        request.Workload?.MetricWeights ?? AdvisorMetricWeights.Balanced;
+
+    private static double ComputeWeightedCost(BenchmarkMeasurement measurement, AdvisorMetricWeights weights)
+    {
+        double latencyComponent = measurement.Latency.Value;
+        double memoryComponent = measurement.Memory.Value / (1024d * 1024d);
+        double consistencyComponent = measurement.Consistency.ToCostComponent();
+        double costComponent = measurement.Cost.Value;
+
+        double totalWeight = Math.Max(1d, weights.LatencyWeight + weights.MemoryWeight + weights.ConsistencyWeight + weights.CostWeight);
+
+        double aggregate = (weights.LatencyWeight * latencyComponent)
+            + (weights.MemoryWeight * memoryComponent)
+            + (weights.ConsistencyWeight * consistencyComponent)
+            + (weights.CostWeight * costComponent);
+
+        return aggregate / totalWeight;
+    }
+
+    private static long ResolveMemoryBytes(BenchmarkMeasurement measurement) =>
+        (long)Math.Max(0d, measurement.Memory.Value);
+
+    private static AdvisorBenchmarkMetrics ConvertToContract(BenchmarkMeasurement measurement)
+    {
+        IReadOnlyDictionary<string, double>? additional = null;
+        if (measurement.AdditionalMetrics is { Count: > 0 })
+        {
+            additional = measurement.AdditionalMetrics.ToDictionary(
+                kvp => kvp.Key,
+                kvp => kvp.Value.Value,
+                StringComparer.OrdinalIgnoreCase);
+        }
+
+        return new AdvisorBenchmarkMetrics(
+            measurement.Latency.Value,
+            ResolveMemoryBytes(measurement),
+            measurement.Consistency.Value,
+            measurement.Cost.Value,
+            additional);
     }
 
     private static AdvisorRunResult ExecuteAdvisor(
@@ -206,6 +302,7 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
         var cost = new double[queryCount * frameworkCount];
         var mem = new long[queryCount * frameworkCount];
         var weights = new int[queryCount];
+        var metricWeights = ResolveMetricWeights(request);
 
         for (int qi = 0; qi < queryCount; qi++)
         {
@@ -216,10 +313,10 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
             for (int fi = 0; fi < frameworkCount; fi++)
             {
                 var framework = targetFrameworks[fi];
-                var m = queryMeasurements[framework];
+                var measurement = queryMeasurements[framework];
                 int index = (qi * frameworkCount) + fi;
-                cost[index] = m.MeanDurationMilliseconds;
-                mem[index] = m.AllocatedBytes;
+                cost[index] = ComputeWeightedCost(measurement, metricWeights);
+                mem[index] = ResolveMemoryBytes(measurement);
             }
         }
 
@@ -264,6 +361,18 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
             assignments[request.Queries[qi].Id] = targetFrameworks[frameworkIndex];
         }
 
-        return new AdvisorRunResult(objective, chosenFrameworks, assignments);
+        var summaries = new Dictionary<string, IReadOnlyDictionary<string, AdvisorBenchmarkMetrics>>(StringComparer.Ordinal);
+        foreach (var (queryId, frameworkMeasurements) in measurements)
+        {
+            var converted = new Dictionary<string, AdvisorBenchmarkMetrics>(StringComparer.OrdinalIgnoreCase);
+            foreach (var (framework, measurement) in frameworkMeasurements)
+            {
+                converted[framework] = ConvertToContract(measurement);
+            }
+
+            summaries[queryId] = converted;
+        }
+
+        return new AdvisorRunResult(objective, chosenFrameworks, assignments, summaries);
     }
 }

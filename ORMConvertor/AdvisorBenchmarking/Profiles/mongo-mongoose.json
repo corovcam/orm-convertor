@@ -1,0 +1,20 @@
+{
+  "default": {
+    "latencyMs": 5.2,
+    "memoryBytes": 2621440,
+    "consistencyScore": 0.65,
+    "monetaryCost": 0.03
+  },
+  "analytics": {
+    "latencyMs": 8.9,
+    "memoryBytes": 3145728,
+    "consistencyScore": 0.58,
+    "monetaryCost": 0.05
+  },
+  "reporting": {
+    "latencyMs": 6.1,
+    "memoryBytes": 2752512,
+    "consistencyScore": 0.62,
+    "monetaryCost": 0.04
+  }
+}
