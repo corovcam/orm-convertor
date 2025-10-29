@@ -6,10 +6,10 @@ namespace OrmConvertor.ServiceContracts.Advisor;
 /// Minimal payload for kicking off an advisor optimisation run.
 /// </summary>
 public record AdvisorRunRequest(
-    ORMEnum SourceOrm,
+    string SourceOrmId,
     IReadOnlyList<ConversionSource> Entities,
     IReadOnlyList<AdvisorRunQuery> Queries,
     long MaxMemoryBytes,
     int MaxFrameworksToSelect,
-    IReadOnlyList<ORMEnum>? TargetFrameworks = null
+    IReadOnlyList<string>? TargetFrameworks = null
 );

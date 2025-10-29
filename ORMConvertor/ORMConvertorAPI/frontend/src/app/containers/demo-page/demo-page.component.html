@@ -1,13 +1,10 @@
 <button class="back-button" (click)="back()">← Back</button>
 <div class="pane-container">
-
   <div class="pane left">
     <label class="orm-label">
       Source ORM
-      <select [(ngModel)]="sourceOrm" (ngModelChange)="onSourceOrmChange($event)">
-        @for (opt of ormTypeOptions; track opt.value) {
-          <option [value]="opt.value">{{ opt.key }}</option>
-        }
+      <select [(ngModel)]="sourceOrmId" (ngModelChange)="onSourceOrmChange($event)">
+        <option *ngFor="let orm of orms" [ngValue]="orm.id">{{ orm.displayName }}</option>
       </select>
     </label>
 
@@ -15,19 +12,23 @@
       <pre>{{ error }}</pre>
     }
 
-    <button class="fill-sample-btn" (click)="fillWithSamples()">Fill Samples</button>
+    <button class="fill-sample-btn" (click)="fillWithSamples()" [disabled]="!displayUnits.length">
+      Fill Samples
+    </button>
 
-    @for (unit of displayUnits; track $index) {
+    @for (unit of displayUnits; track unit.id) {
       <app-content-display
+        [title]="getContentKind(unit.contentKindId)?.displayName ?? unit.contentKindId"
         [description]="unit.description"
-        [contentType]="unit.contentType"
-        [(content)]="contentByUnit[unit.id]"
-        [autoResize]="true">
-      </app-content-display>
+        [languageOptions]="getContentKind(unit.contentKindId)?.languages ?? []"
+        [language]="contentState[unit.id]?.language ?? null"
+        (languageChange)="updateLanguage(unit, $event)"
+        [autoResize]="true"
+        [content]="contentState[unit.id]?.content ?? ''"
+        (contentChange)="updateContent(unit, $event)"
+      ></app-content-display>
     }
-
   </div>
-
 
   <div class="pane right">
     <h3>Constraints</h3>
@@ -39,22 +40,31 @@
     </div>
 
     <h3>Target Frameworks</h3>
-
-    <div #tfGroup class="target-frameworks">
-      @for (opt of ormTypeOptions; track opt.value) {
+    <div class="target-frameworks">
+      @for (orm of orms; track orm.id) {
         <label>
-          <input type="checkbox"
-                 [value]="opt.value" />
-          {{ opt.key }}
+          <input
+            type="checkbox"
+            [checked]="selectedTargetOrms.has(orm.id)"
+            (change)="onTargetOrmToggle(orm.id, $event.target.checked)"
+          />
+          {{ orm.displayName }}
         </label>
       }
-      <button class="select-all-btn" (click)="selectAllTargets(tfGroup)">Select All</button>
+      <button class="select-all-btn" (click)="selectAllTargets()">Select All</button>
     </div>
 
-    <button class="middle-button" (click)="convert()" [disabled]="isLoading">
+    <label class="orm-label">
+      Target ORM
+      <select [(ngModel)]="targetOrmId" (ngModelChange)="onTargetOrmChange($event)">
+        <option *ngFor="let orm of orms" [ngValue]="orm.id">{{ orm.displayName }}</option>
+      </select>
+    </label>
+
+    <button class="middle-button" (click)="convert()" [disabled]="isLoading || !sourceOrmId || !targetOrmId">
       Optimize
     </button>
-    
+
     <h3 *ngIf="isLoading" class="optimizing-text">
       Optimizing{{ loadingDots }}
     </h3>
@@ -62,26 +72,36 @@
     @if (showResults) {
       <div class="results">
         <app-result-table></app-result-table>
-        <div>
-          <h3>Recommendation: Dapper</h3>
-          <p>Runtime: 960 ms</p>
-          <p>Memory: 43,082 kB</p>
+        <div class="recommendation">
+          @if (recommendedOrm; as orm) {
+            <h3>Recommendation: {{ orm.displayName }}</h3>
+            <p class="demo-note">
+              Advisor scoring integration pending. Displaying your selected target as a placeholder
+              recommendation.
+            </p>
+          } @else {
+            <h3>Recommendation pending</h3>
+            <p class="demo-note">
+              Select target frameworks to preview advisor recommendations when scoring becomes
+              available.
+            </p>
+          }
         </div>
       </div>
-      <hr>
-      <label class="orm-label">Results (Dapper)</label>
+      <hr />
+      <label class="orm-label">Results ({{ getOrmDisplayName(targetOrmId) }})</label>
 
       @for (unit of convertedUnits; track $index) {
         <app-content-display
-          [description]="unit.contentType | contentTypeToString"
-          [contentType]="unit.contentType"
+          [title]="getContentKind(unit.contentKindId)?.displayName ?? unit.contentKindId"
+          [description]="unit.language ? ('Language: ' + unit.language) : ''"
+          [languageOptions]="[]"
+          [language]="unit.language ?? null"
           [content]="unit.content"
           [readonly]="true"
-          [autoResize]="true">
-        </app-content-display>
+          [autoResize]="true"
+        ></app-content-display>
       }
     }
   </div>
-  
-
 </div>

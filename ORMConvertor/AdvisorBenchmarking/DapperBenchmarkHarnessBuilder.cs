@@ -24,7 +24,7 @@ internal static class DapperBenchmarkHarnessBuilder
 
         // Dapper is fed with a single translated query. Entity + query sources come from translation layer.
         var querySource = sources
-            .FirstOrDefault(s => s.ContentType == ConversionContentType.CSharpQuery)?.Content
+            .FirstOrDefault(s => s.ContentKindId == "csharp-query")?.Content
             ?? throw new InvalidOperationException("Dapper harness requires a query definition.");
         querySource = NormalizeQuerySource(querySource);
 

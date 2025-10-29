@@ -1,13 +1,10 @@
 <button class="back-button" (click)="back()">← Back</button>
 <div class="pane-container">
-
   <div class="pane left">
     <label>
       Source ORM
-      <select [(ngModel)]="sourceOrm" (ngModelChange)="onSourceOrmChange($event)">
-        <option [value]="ormTypeEnum.Dapper">Dapper</option>
-        <option [value]="ormTypeEnum.NHibernate">NHibernate</option>
-        <option [value]="ormTypeEnum.EFCore">EFCore</option>
+      <select [(ngModel)]="sourceOrmId" (ngModelChange)="onSourceOrmChange($event)">
+        <option *ngFor="let orm of orms" [ngValue]="orm.id">{{ orm.displayName }}</option>
       </select>
     </label>
 
@@ -15,46 +12,50 @@
       <pre>{{ error }}</pre>
     }
 
-    <button class="fill-sample-btn" (click)="fillWithSamples()">Fill Samples</button>
+    <button class="fill-sample-btn" (click)="fillWithSamples()" [disabled]="!displayUnits.length">
+      Fill Samples
+    </button>
 
-    @for (unit of displayUnits; track $index) {
+    @for (unit of displayUnits; track unit.id) {
       <app-content-display
+        [title]="getContentKind(unit.contentKindId)?.displayName ?? unit.contentKindId"
         [description]="unit.description"
-        [contentType]="unit.contentType"
+        [languageOptions]="getContentKind(unit.contentKindId)?.languages ?? []"
+        [language]="contentState[unit.id]?.language ?? null"
+        (languageChange)="updateLanguage(unit, $event)"
         [autoResize]="true"
-        [(content)]="contentByUnit[unit.id]">
-      </app-content-display>
+        [content]="contentState[unit.id]?.content ?? ''"
+        (contentChange)="updateContent(unit, $event)"
+      ></app-content-display>
     }
-
   </div>
 
   <div class="pane right">
     <label>
       Target ORM
-      <select [(ngModel)]="targetOrm" (ngModelChange)="onTargetOrmChange($event)">
-        <option [value]="ormTypeEnum.Dapper">Dapper</option>
-        <option [value]="ormTypeEnum.NHibernate">NHibernate</option>
-        <option [value]="ormTypeEnum.EFCore">EFCore</option>
+      <select [(ngModel)]="targetOrmId" (ngModelChange)="onTargetOrmChange($event)">
+        <option *ngFor="let orm of orms" [ngValue]="orm.id">{{ orm.displayName }}</option>
       </select>
     </label>
 
     <button
       class="middle-button"
       (click)="convert()"
-      [disabled]="isLoading"
+      [disabled]="isLoading || !sourceOrmId || !targetOrmId"
     >
       Convert
     </button>
 
     @for (unit of convertedUnits; track $index) {
       <app-content-display
-        [description]="unit.contentType | contentTypeToString"
-        [contentType]="unit.contentType"
+        [title]="getContentKind(unit.contentKindId)?.displayName ?? unit.contentKindId"
+        [description]="unit.language ? ('Language: ' + unit.language) : ''"
+        [languageOptions]="[]"
+        [language]="unit.language ?? null"
         [content]="unit.content"
         [autoResize]="true"
-        [readonly]="true">
-      </app-content-display>
+        [readonly]="true"
+      ></app-content-display>
     }
   </div>
-
 </div>

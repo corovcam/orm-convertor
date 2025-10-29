@@ -1,13 +1,11 @@
-import { ORMType } from "./orm-type";
-import { ContentType } from "./content-type";
-
 export interface RequiredContentUnit {
   id: number;
-  contentType: ContentType;
+  contentKindId: string;
   description: string;
+  languages: string[];
 }
 
 export interface RequiredContentDefinition {
-  ormType: ORMType;
+  ormId: string;
   required: RequiredContentUnit[];
 }

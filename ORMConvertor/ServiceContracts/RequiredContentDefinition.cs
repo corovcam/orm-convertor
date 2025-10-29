@@ -3,6 +3,6 @@ using Model;
 namespace OrmConvertor.ServiceContracts;
 
 public record RequiredContentDefinition(
-    ORMEnum OrmType,
+    string OrmId,
     List<RequiredContentUnit> Required
 );

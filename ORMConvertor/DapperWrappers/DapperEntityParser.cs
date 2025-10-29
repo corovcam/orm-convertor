@@ -2,7 +2,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Model;
+using Model.Metadata;
 
 namespace DapperWrappers;
 
@@ -12,16 +12,19 @@ namespace DapperWrappers;
 /// </summary>
 public class DapperEntityParser(AbstractEntityBuilder entityBuilder) : IParser
 {
-    public bool CanParse(ConversionContentType contentType)
+    public string Id => "dapper:csharp-entity";
+
+    public bool CanParse(ContentKindDescriptor contentKind, string? language = null)
     {
-        return contentType == ConversionContentType.CSharpEntity;
+        return contentKind.Id.Equals("csharp-entity", StringComparison.OrdinalIgnoreCase)
+            && (language == null || string.Equals(language, "C#", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
     /// Parses a C# class definition (optionally within a namespace) from the provided source code string.
     /// </summary>
     /// <param name="source">C# source code containing a single class, optionally wrapped in a namespace.</param>
-    public void Parse(string source)
+    public void Parse(string source, string? language = null)
     {
         var root = CSharpSyntaxTree.ParseText(source).GetCompilationUnitRoot();
 

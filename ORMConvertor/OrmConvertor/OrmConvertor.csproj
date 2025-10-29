@@ -12,6 +12,9 @@
     <ProjectReference Include="..\EFCoreWrappers\EFCoreWrappers.csproj" />
     <ProjectReference Include="..\Model\Model.csproj" />
     <ProjectReference Include="..\NHibernateWrappers\NHibernateWrappers.csproj" />
+    <ProjectReference Include="..\JavaHibernatePlugin\JavaHibernatePlugin.csproj" />
+    <ProjectReference Include="..\PythonSqlAlchemyPlugin\PythonSqlAlchemyPlugin.csproj" />
+    <ProjectReference Include="..\NodeMongoosePlugin\NodeMongoosePlugin.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,9 @@
-export enum ORMType {
-  Dapper = 10,
-  NHibernate = 20,
-  EFCore = 30,
+export interface OrmTechnology {
+  id: string;
+  displayName: string;
+  description?: string;
+  languages: string[];
+  paradigms: string[];
+  serializers: string[];
+  supportedContentKinds: string[];
 }

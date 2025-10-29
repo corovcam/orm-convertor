@@ -5,7 +5,7 @@ namespace AdvisorBenchmarking;
 public interface IBenchmarkExecutor
 {
     BenchmarkMeasurement Execute(
-        ORMEnum framework,
+        string frameworkId,
         IReadOnlyList<ConversionSource> sources,
         string connectionString);
 }

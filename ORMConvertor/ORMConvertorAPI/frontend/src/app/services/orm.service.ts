@@ -2,6 +2,8 @@ import { Injectable } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Observable } from "rxjs";
 import { ConvertRequest, ConvertResponse } from "../model/convert";
+import { ContentKind } from "../model/content-type";
+import { OrmTechnology } from "../model/orm-type";
 import { RequiredContentDefinition } from "../model/required-content";
 
 @Injectable({ providedIn: "root" })
@@ -16,6 +18,14 @@ export class OrmService {
 
   getRequiredContentAdvisor(): Observable<RequiredContentDefinition[]> {
     return this.http.get<RequiredContentDefinition[]>(`${this.base}/required-content-advisor`);
+  }
+
+  getOrmTechnologies(): Observable<OrmTechnology[]> {
+    return this.http.get<OrmTechnology[]>(`${this.base}/orm-technologies`);
+  }
+
+  getContentKinds(): Observable<ContentKind[]> {
+    return this.http.get<ContentKind[]>(`${this.base}/content-kinds`);
   }
 
   getSamples(): Observable<Record<number, string>> {

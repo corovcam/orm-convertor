@@ -1,0 +1,23 @@
+[
+  {
+    "Id": "java-entity",
+    "DisplayName": "Java Entity",
+    "StatementKinds": ["Class", "POJO"],
+    "Languages": ["Java"],
+    "DefaultLanguage": "Java"
+  },
+  {
+    "Id": "python-model",
+    "DisplayName": "Python Model",
+    "StatementKinds": ["Class"],
+    "Languages": ["Python"],
+    "DefaultLanguage": "Python"
+  },
+  {
+    "Id": "typescript-schema",
+    "DisplayName": "TypeScript Schema",
+    "StatementKinds": ["Schema"],
+    "Languages": ["TypeScript"],
+    "DefaultLanguage": "TypeScript"
+  }
+]

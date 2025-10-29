@@ -1,14 +1,12 @@
-import { ContentType } from "./content-type";
-import { ORMType } from "./orm-type";
-
 export interface SourceUnit {
-  contentType: ContentType;
+  contentKindId: string;
+  language?: string | null;
   content: string;
 }
 
 export interface ConvertRequest {
-  sourceOrm: ORMType;
-  targetOrm: ORMType;
+  sourceOrmId: string;
+  targetOrmId: string;
   sources: SourceUnit[];
 }
 

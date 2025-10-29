@@ -6,21 +6,21 @@ namespace AdvisorBenchmarking;
 
 internal static class BenchmarkHarnessBuilder
 {
-    private static readonly IReadOnlyDictionary<ORMEnum, Func<IReadOnlyList<ConversionSource>, string, BenchmarkSource>> Generators =
-        new Dictionary<ORMEnum, Func<IReadOnlyList<ConversionSource>, string, BenchmarkSource>>
+    private static readonly IReadOnlyDictionary<string, Func<IReadOnlyList<ConversionSource>, string, BenchmarkSource>> Generators =
+        new Dictionary<string, Func<IReadOnlyList<ConversionSource>, string, BenchmarkSource>>(StringComparer.OrdinalIgnoreCase)
         {
-            [ORMEnum.Dapper] = DapperBenchmarkHarnessBuilder.Build,
-            [ORMEnum.EFCore] = EfCoreBenchmarkHarnessBuilder.Build
+            ["dapper"] = DapperBenchmarkHarnessBuilder.Build,
+            ["ef-core"] = EfCoreBenchmarkHarnessBuilder.Build
         };
 
     public static BenchmarkSource Build(
-        ORMEnum framework,
+        string frameworkId,
         IReadOnlyList<ConversionSource> sources,
         string connectionString)
     {
-        if (!Generators.TryGetValue(framework, out var generator))
+        if (!Generators.TryGetValue(frameworkId, out var generator))
         {
-            throw new NotSupportedException($"Benchmark harness for framework {framework} is not implemented yet.");
+            throw new NotSupportedException($"Benchmark harness for framework {frameworkId} is not implemented yet.");
         }
 
         return generator(sources, connectionString);

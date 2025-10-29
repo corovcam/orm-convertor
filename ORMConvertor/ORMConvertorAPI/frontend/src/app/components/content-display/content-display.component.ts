@@ -11,7 +11,6 @@ import {
   ElementRef,
 } from "@angular/core";
 import { FormsModule } from "@angular/forms";
-import { ContentType } from "../../model/content-type";
 @Component({
   selector: "app-content-display",
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,11 +19,14 @@ import { ContentType } from "../../model/content-type";
   styleUrls: ["./content-display.component.less"],
 })
 export class ContentDisplayComponent implements AfterViewInit, OnChanges {
-  @Input() contentType: ContentType = ContentType.CSharpEntity;
+  @Input() title: string = "";
+  @Input() languageOptions: string[] = [];
+  @Input() language: string | null = null;
   @Input() content: string = "";
   @Input() autoResize: boolean = false;
   @Input() description: string = "";
   @Output() contentChange = new EventEmitter<string>();
+  @Output() languageChange = new EventEmitter<string>();
   @Input() readonly = false;
   @ViewChild('codeArea') private codeArea!: ElementRef<HTMLTextAreaElement>;
 
@@ -37,6 +39,15 @@ export class ContentDisplayComponent implements AfterViewInit, OnChanges {
   ngOnChanges(changes: SimpleChanges): void {
     if (this.autoResize && changes['content']) {
       setTimeout(() => this.resize(), 0);
+    }
+
+    if (
+      this.languageOptions?.length &&
+      (!this.language || !this.languageOptions.includes(this.language))
+    ) {
+      const defaultLang = this.languageOptions[0];
+      this.language = defaultLang;
+      this.languageChange.emit(defaultLang);
     }
   }
 
