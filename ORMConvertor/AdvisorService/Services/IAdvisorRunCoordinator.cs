@@ -1,6 +1,6 @@
-using ORMConvertorAPI.Dtos.Advisor;
+using OrmConvertor.ServiceContracts.Advisor;
 
-namespace ORMConvertorAPI.Services;
+namespace AdvisorService.Services;
 
 /// <summary>
 /// Minimal contract for running the advisor pipeline end-to-end.

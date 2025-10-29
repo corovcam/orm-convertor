@@ -1,4 +1,4 @@
-namespace ORMConvertorAPI.Dtos.Advisor;
+namespace OrmConvertor.ServiceContracts.Advisor;
 
 public record AdvisorSolveResponse(
     int Status,

@@ -1,7 +1,8 @@
-﻿using Model;
-using ORMConvertorAPI.Dtos;
+using Model;
+using OrmConvertor.ServiceContracts;
 
-namespace ORMConvertorAPI.Data;
+namespace MetadataService.Data;
+
 public static class RequiredContent
 {
     public static List<RequiredContentDefinition> GetRequiredContent => [

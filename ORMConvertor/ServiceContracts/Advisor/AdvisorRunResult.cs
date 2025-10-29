@@ -1,6 +1,6 @@
 using Model;
 
-namespace ORMConvertorAPI.Dtos.Advisor;
+namespace OrmConvertor.ServiceContracts.Advisor;
 
 /// <summary>
 /// Minimal advisor response containing the recommended framework selection.
