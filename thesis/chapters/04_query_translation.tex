@@ -177,6 +177,8 @@ One query builder is passed among the functions, sequentially constructing the f
     \DontPrintSemicolon
 
     \SetKw{return}{return}
+    \SetKw{Continue}{continue}
+    \SetKw{Break}{break}
     
     \KwIn{$inst$ -- abstract instructions built in parsing phase\;}
     \myinput{$visitor$ -- concrete SQL visitor implementation\;}
@@ -287,14 +289,14 @@ One query builder is passed among the functions, sequentially constructing the f
 
 % pseudocodes of parsing - visitor using Roslyn's CSharpSyntaxWalker over LINQ 
 
-Similarly to the parser for entities and mapping, query parser interface defines only two methods, as demonstrated in Listing~\ref{lst:qparser}. The \texttt{CanParse} method receives a content type and indicates whether the parser is capable of processing it. And the \texttt{Parse} method initiates the actual process. The method has an additional argument to accept entity mapping intermediate representation from which it can obtain necessary metadata.  
+Similarly to the parser for entities and mapping, the query parser interface defines only two methods, as demonstrated in Listing~\ref{lst:qparser}. The \texttt{CanParse} method receives a content kind descriptor together with the language of the source and indicates whether the parser is capable of processing it. The \texttt{Parse} method initiates the actual process and accepts both the entity mapping intermediate representation and the language hint so that parsers can handle dialect-specific syntax.
 
  \begin{lstlisting}[caption={IQueryParser interface structure}, language=pseudo, label={lst:qparser}]
 interface IQueryParser
 
 public:
-    CanParse(contentType) : boolean;
-    Parse(source, entityMap);
+    CanParse(contentKind, language) : boolean;
+    Parse(source, entityMap, language);
  \end{lstlisting}
 
 Algorithm~\ref{alg:query_parser_main} demonstrates how a parser over a \acrshort{linq} query can work. It leverages multiple visitors sharing a common interface, as shown in Listing~\ref{lst:syntaxvisitor}. Each visitor handles specific \acrshort{linq} methods, indicating the compatibility using the \texttt{CanVisit} method. Subsequently, the \texttt{Visit} method extracts relevant information from each \acrshort{linq} method call and forwards it to the query builder.
@@ -467,20 +469,26 @@ With all abstractions and algorithms for both parsing and building established, 
     $parsers$ = ParserFactory.Create($ORM_{in}$, $entityBuilder$, $queryBuilder$)\;
     $results$ = empty list\;
     
+    $queryParsed$ = false\;
     \ForEach{\textup{$parser$ in $parsers$}}{
+        \If{\textup{$queryBuilder$ == null $\land$ $parser$ is IQueryParser}}{\Continue}
         \ForEach{\textup{$source$ in $sources$}}{
-            \If{\textup{$parser$.CanParse($source$.ContentType)}}{
+            $kind$ = ContentKindRegistry.TryGet($source$.ContentKindId)\;
+            \If{\textup{$kind$ == null}}{\Continue}
+            \If{\textup{$parser$.CanParse($kind$, $source$.Language)}}{
                 \If{\textup{$parser$ is IQueryParser}}{
-                    $parser$.Parse($source$.Content, $entityBuilder$.EntityMap)\;
+                    $parser$.Parse($source$.Content, $entityBuilder$.EntityMap, $source$.Language)\;
+                    $queryParsed$ = true\;
                 } \Else {
-                    $parser$.Parse($source$.Content)\;
+                    $parser$.Parse($source$.Content, $source$.Language)\;
                 }
+                \Break
             }
         }
     }
 
     $results$.AddRange($entityBuilder$.Build())\;
-    \If{\textup{$queryBuilder$ != null}} {
+    \If{\textup{$queryBuilder$ \neq null $\land$ $queryParsed$}} {
         $results$.AddRange($queryBuilder$.Build())\;
     }
     

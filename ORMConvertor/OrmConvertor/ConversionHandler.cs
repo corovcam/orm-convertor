@@ -7,36 +7,44 @@ namespace OrmConvertor;
 public static class ConversionHandler
 {
     public static List<ConversionSource> Convert(
-        ORMEnum sourceOrm,
-        ORMEnum targetOrm,
+        string sourceOrmId,
+        string targetOrmId,
         List<ConversionSource> sources
     )
     {
-        var entityBuilder = EntityBuilderFactory.Create(targetOrm);
-        var queryBuilder = QueryBuilderFactory.Create(targetOrm);
+        var entityBuilder = EntityBuilderFactory.Create(targetOrmId);
+        var queryBuilder = QueryBuilderFactory.Create(targetOrmId);
 
-        if (entityBuilder == null)
-        {
-            throw new InvalidOperationException("Target ORM not supported");
-        }
-
-        var parsers = ParserFactory.Create(sourceOrm, entityBuilder, queryBuilder);
-
-        if (parsers.Count == 0)
-        {
-            throw new InvalidOperationException("Source ORM not supported");
-        }
+        var parsers = ParserFactory.Create(sourceOrmId, entityBuilder, queryBuilder);
 
         var results = new List<ConversionSource>();
+        var queryParsed = false;
 
         foreach (var parser in parsers)
         {
-            if (parser.CanParse(ConversionContentType.CSharpQuery) && queryBuilder == null)
+            if (queryBuilder == null && parser is IQueryParser)
             {
                 continue;
             }
 
-            var parsable = sources.FirstOrDefault(x => parser.CanParse(x.ContentType));
+            ConversionSource? parsable = null;
+
+            foreach (var source in sources)
+            {
+                if (!ContentKindRegistry.TryGet(source.ContentKindId, out var descriptor))
+                {
+                    continue;
+                }
+
+                if (!parser.CanParse(descriptor, source.Language))
+                {
+                    continue;
+                }
+
+                parsable = source;
+                break;
+            }
+
             if (parsable == null)
             {
                 continue;
@@ -44,16 +52,17 @@ public static class ConversionHandler
 
             if (parser is IQueryParser qp)
             {
-                qp.Parse(parsable.Content, entityBuilder.EntityMap);
+                qp.Parse(parsable.Content, entityBuilder.EntityMap, parsable.Language);
+                queryParsed = true;
             }
             else
             {
-                parser.Parse(parsable.Content);
+                parser.Parse(parsable.Content, parsable.Language);
             }
         }
 
         results.AddRange(entityBuilder.Build());
-        if (queryBuilder != null && sources.Any(x => x.ContentType == ConversionContentType.CSharpQuery))
+        if (queryBuilder != null && queryParsed)
         {
             results.AddRange(queryBuilder.Build());
         }

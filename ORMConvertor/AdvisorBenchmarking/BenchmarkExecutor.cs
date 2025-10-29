@@ -20,13 +20,13 @@ public sealed class BenchmarkExecutor : IBenchmarkExecutor
     }
 
     public BenchmarkMeasurement Execute(
-        ORMEnum framework,
+        string frameworkId,
         IReadOnlyList<ConversionSource> sources,
         string connectionString)
     {
-        logger?.LogInformation("Benchmark start for framework {Framework} with {SourceCount} sources.", framework, sources.Count);
+        logger?.LogInformation("Benchmark start for framework {Framework} with {SourceCount} sources.", frameworkId, sources.Count);
 
-        var benchmarkSource = BenchmarkHarnessBuilder.Build(framework, sources, connectionString);
+        var benchmarkSource = BenchmarkHarnessBuilder.Build(frameworkId, sources, connectionString);
         logger?.LogDebug("Generated benchmark source (first 10000 chars): {SourceSnippet}", Truncate(benchmarkSource.Source, 10000));
 
         var assemblyName = $"DynamicBenchmarks_{Guid.NewGuid():N}";

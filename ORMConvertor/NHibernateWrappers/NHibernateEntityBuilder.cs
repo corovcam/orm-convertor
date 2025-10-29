@@ -32,8 +32,8 @@ public class NHibernateEntityBuilder : AbstractEntityBuilder
 
         return
         [
-            new() { ContentType = ConversionContentType.CSharpEntity, Content = codeResult.ToString() },
-            new() { ContentType = ConversionContentType.XML, Content = mappingResult.ToString() }
+            new() { ContentKindId = "csharp-entity", Language = "C#", Content = codeResult.ToString() },
+            new() { ContentKindId = "xml-mapping", Language = "XML", Content = mappingResult.ToString() }
         ];
     }
 

@@ -2,9 +2,9 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Model;
 using Model.AbstractRepresentation;
 using Model.QueryInstructions.Enums;
+using Model.Metadata;
 
 namespace EFCoreWrappers;
 
@@ -14,17 +14,20 @@ public class EFCoreLinqQueryParser(AbstractQueryBuilder queryBuilder) : CSharpSy
     private bool fromWasEmitted;
     private EntityMap? entityMap;
 
-    public bool CanParse(ConversionContentType contentType)
+    public string Id => "ef-core:csharp-query";
+
+    public bool CanParse(ContentKindDescriptor contentKind, string? language = null)
     {
-        return contentType == ConversionContentType.CSharpQuery;
+        return contentKind.Id.Equals("csharp-query", StringComparison.OrdinalIgnoreCase)
+            && (language == null || string.Equals(language, "C#", StringComparison.OrdinalIgnoreCase));
     }
 
-    public void Parse(string source)
+    public void Parse(string source, string? language = null)
     {
-        Parse(source, null);
+        Parse(source, null, language);
     }
 
-    public void Parse(string source, EntityMap? entityMap)
+    public void Parse(string source, EntityMap? entityMap, string? language = null)
     {
         this.entityMap = entityMap;
 

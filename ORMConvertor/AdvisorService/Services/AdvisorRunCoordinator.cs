@@ -14,17 +14,17 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
     private readonly ILogger<AdvisorRunCoordinator> logger;
     private readonly string connectionString;
 
-    private static readonly ORMEnum[] KnownFrameworks =
+    private static readonly string[] KnownFrameworks =
     [
-        ORMEnum.Dapper,
-        ORMEnum.NHibernate,
-        ORMEnum.EFCore
+        "dapper",
+        "nhibernate",
+        "ef-core"
     ];
 
-    private static readonly ORMEnum[] SupportedFrameworks =
+    private static readonly string[] SupportedFrameworks =
     [
-        ORMEnum.Dapper,
-        ORMEnum.EFCore
+        "dapper",
+        "ef-core"
     ];
 
     public AdvisorRunCoordinator(
@@ -52,7 +52,7 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
             throw new ArgumentException("At least one query is required", nameof(request));
         }
 
-        logger.LogInformation("Advisor run received with {QueryCount} queries from source ORM {SourceOrm}.", request.Queries.Count, request.SourceOrm);
+        logger.LogInformation("Advisor run received with {QueryCount} queries from source ORM {SourceOrm}.", request.Queries.Count, request.SourceOrmId);
 
         var targetFrameworks = ResolveTargetFrameworks(request);
         if (targetFrameworks.Count == 0)
@@ -82,9 +82,9 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
         return Task.FromResult(result);
     }
 
-    private static IReadOnlyList<ORMEnum> ResolveTargetFrameworks(AdvisorRunRequest request)
+    private static IReadOnlyList<string> ResolveTargetFrameworks(AdvisorRunRequest request)
     {
-        IEnumerable<ORMEnum> candidates = request.TargetFrameworks is { Count: > 0 } explicitTargets
+        IEnumerable<string> candidates = request.TargetFrameworks is { Count: > 0 } explicitTargets
             ? explicitTargets
             : KnownFrameworks;
 
@@ -96,23 +96,23 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
         return filtered;
     }
 
-    private static IReadOnlyDictionary<string, IReadOnlyDictionary<ORMEnum, IReadOnlyList<ConversionSource>>> BuildTranslations(
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<ConversionSource>>> BuildTranslations(
         AdvisorRunRequest request,
-        IReadOnlyList<ORMEnum> targetFrameworks,
+        IReadOnlyList<string> targetFrameworks,
         CancellationToken cancellationToken)
     {
-        var result = new Dictionary<string, IReadOnlyDictionary<ORMEnum, IReadOnlyList<ConversionSource>>>(StringComparer.Ordinal);
+        var result = new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<ConversionSource>>>(StringComparer.Ordinal);
 
         foreach (var query in request.Queries)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var perFramework = new Dictionary<ORMEnum, IReadOnlyList<ConversionSource>>();
+            var perFramework = new Dictionary<string, IReadOnlyList<ConversionSource>>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var framework in targetFrameworks)
             {
                 IReadOnlyList<ConversionSource> artifacts;
-                if (framework == request.SourceOrm)
+                if (string.Equals(framework, request.SourceOrmId, StringComparison.OrdinalIgnoreCase))
                 {
                     artifacts = ComposeSources(request.Entities, query.Query);
                 }
@@ -120,7 +120,7 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
                 {
                     var sources = ComposeSources(request.Entities, query.Query);
                     artifacts = ConversionHandler.Convert(
-                        request.SourceOrm,
+                        request.SourceOrmId,
                         framework,
                         sources);
                 }
@@ -151,17 +151,18 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
     private static ConversionSource Clone(ConversionSource source) =>
         new()
         {
-            ContentType = source.ContentType,
+            ContentKindId = source.ContentKindId,
+            Language = source.Language,
             Content = source.Content
         };
 
-    private IReadOnlyDictionary<string, IReadOnlyDictionary<ORMEnum, BenchmarkMeasurement>> RunBenchmarks(
+    private IReadOnlyDictionary<string, IReadOnlyDictionary<string, BenchmarkMeasurement>> RunBenchmarks(
         AdvisorRunRequest request,
-        IReadOnlyList<ORMEnum> targetFrameworks,
-        IReadOnlyDictionary<string, IReadOnlyDictionary<ORMEnum, IReadOnlyList<ConversionSource>>> translations,
+        IReadOnlyList<string> targetFrameworks,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, IReadOnlyList<ConversionSource>>> translations,
         CancellationToken cancellationToken)
     {
-        var results = new Dictionary<string, IReadOnlyDictionary<ORMEnum, BenchmarkMeasurement>>(StringComparer.Ordinal);
+        var results = new Dictionary<string, IReadOnlyDictionary<string, BenchmarkMeasurement>>(StringComparer.Ordinal);
 
         foreach (var query in request.Queries)
         {
@@ -173,7 +174,7 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
                 throw new InvalidOperationException($"Missing translations for query '{query.Id}'.");
             }
 
-            var perFramework = new Dictionary<ORMEnum, BenchmarkMeasurement>();
+            var perFramework = new Dictionary<string, BenchmarkMeasurement>(StringComparer.OrdinalIgnoreCase);
             foreach (var framework in targetFrameworks)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -196,8 +197,8 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
 
     private static AdvisorRunResult ExecuteAdvisor(
         AdvisorRunRequest request,
-        IReadOnlyList<ORMEnum> targetFrameworks,
-        IReadOnlyDictionary<string, IReadOnlyDictionary<ORMEnum, BenchmarkMeasurement>> measurements)
+        IReadOnlyList<string> targetFrameworks,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, BenchmarkMeasurement>> measurements)
     {
         int queryCount = request.Queries.Count;
         int frameworkCount = targetFrameworks.Count;
@@ -242,7 +243,7 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
             throw new InvalidOperationException($"Advisor solver failed with status code {status}.");
         }
 
-        var chosenFrameworks = new List<ORMEnum>();
+        var chosenFrameworks = new List<string>();
         for (int fi = 0; fi < frameworkCount; fi++)
         {
             if (selected[fi] > 0)
@@ -251,7 +252,7 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
             }
         }
 
-        var assignments = new Dictionary<string, ORMEnum>(StringComparer.Ordinal);
+        var assignments = new Dictionary<string, string>(StringComparer.Ordinal);
         for (int qi = 0; qi < queryCount; qi++)
         {
             int frameworkIndex = assignment[qi];

@@ -60,8 +60,8 @@ public class EFCoreToNHibernate
         entityParser.Parse(sourceCode);
 
         var results = builder.Build();
-        var entityOutput = results.Single(x => x.ContentType == ConversionContentType.CSharpEntity);
-        var xmlOutput = results.Single(x => x.ContentType == ConversionContentType.XML);
+        var entityOutput = results.Single(x => x.ContentKindId == "csharp-entity");
+        var xmlOutput = results.Single(x => x.ContentKindId == "xml-mapping");
 
         string expectedEntity = """
         public class Order
@@ -136,10 +136,10 @@ public class EFCoreToNHibernate
 
         Assert.Multiple(() =>
         {
-            Assert.Equal(ConversionContentType.CSharpEntity, entityOutput.ContentType);
+            Assert.Equal("csharp-entity", entityOutput.ContentKindId);
             Assert.Equal(expectedEntity, entityOutput.Content, ignoreLineEndingDifferences: true);
 
-            Assert.Equal(ConversionContentType.XML, xmlOutput.ContentType);
+            Assert.Equal("xml-mapping", xmlOutput.ContentKindId);
             Assert.Equal(expectedMapping, xmlOutput.Content, ignoreLineEndingDifferences: true);
         });
     }

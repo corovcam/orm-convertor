@@ -23,7 +23,8 @@ public class DapperEntityBuilder : AbstractEntityBuilder
         return [
             new ConversionSource
             {
-                ContentType = ConversionContentType.CSharpEntity,
+                ContentKindId = "csharp-entity",
+                Language = "C#",
                 Content = codeResult.ToString()
             }
         ];

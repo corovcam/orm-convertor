@@ -1,5 +1,18 @@
 <div class="content-display">
-  <div class="description">{{ description }}</div>
+  <div class="description">
+    <div class="title" *ngIf="title">{{ title }}</div>
+    <div class="details">{{ description }}</div>
+  </div>
+  <div class="language-selector" *ngIf="languageOptions?.length">
+    <label>
+      Language
+      <select [(ngModel)]="language" (ngModelChange)="languageChange.emit($event)">
+        <option *ngFor="let option of languageOptions" [value]="option">
+          {{ option }}
+        </option>
+      </select>
+    </label>
+  </div>
   <div class="code-wrapper">
     <textarea
       #codeArea

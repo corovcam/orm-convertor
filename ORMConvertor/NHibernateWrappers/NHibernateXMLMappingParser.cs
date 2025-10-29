@@ -1,6 +1,6 @@
 ﻿using AbstractWrappers;
-using Model;
 using Model.AbstractRepresentation.Enums;
+using Model.Metadata;
 using NHibernateWrappers.Convertors;
 using System.Xml.Linq;
 
@@ -12,16 +12,19 @@ namespace NHibernateWrappers;
 /// </summary>
 public class NHibernateXMLMappingParser(AbstractEntityBuilder entityBuilder) : IParser
 {
-    public bool CanParse(ConversionContentType contentType)
+    public string Id => "nhibernate:xml-mapping";
+
+    public bool CanParse(ContentKindDescriptor contentKind, string? language = null)
     {
-        return contentType == ConversionContentType.XML;
+        return contentKind.Id.Equals("xml-mapping", StringComparison.OrdinalIgnoreCase)
+            && (language == null || string.Equals(language, "XML", StringComparison.OrdinalIgnoreCase));
     }
 
     /// <summary>
     /// Parses an NHibernate mapping XML file from the provided source code string.
     /// </summary>
     /// <param name="source">String containing XML mapping file</param>
-    public void Parse(string source)
+    public void Parse(string source, string? language = null)
     {
         if (string.IsNullOrEmpty(source))
         {

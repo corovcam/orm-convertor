@@ -15,7 +15,7 @@ internal static class HarnessGenerationUtilities
         string connectionString)
     {
         var entityInfos = sources
-            .Where(s => s.ContentType == ConversionContentType.CSharpEntity)
+            .Where(s => s.ContentKindId == "csharp-entity")
             .Select(s =>
             {
                 var (usings, body) = SplitUsings(s.Content);
@@ -34,7 +34,7 @@ internal static class HarnessGenerationUtilities
 
     internal static List<string> ExtractQuerySources(IReadOnlyList<ConversionSource> sources) =>
         sources
-            .Where(s => s.ContentType == ConversionContentType.CSharpQuery)
+            .Where(s => s.ContentKindId == "csharp-query")
             .Select(s => NormalizeQuerySource(s.Content))
             .Where(content => content.Length > 0)
             .ToList();

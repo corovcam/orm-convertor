@@ -1,133 +1,161 @@
-import { CommonModule, KeyValuePipe, Location } from "@angular/common";
-import { Component, DestroyRef, inject, OnInit, AfterViewInit, HostListener, ElementRef } from "@angular/core";
+import {
+  CommonModule,
+  Location,
+} from "@angular/common";
+import {
+  AfterViewInit,
+  Component,
+  DestroyRef,
+  ElementRef,
+  HostListener,
+  OnInit,
+  inject,
+} from "@angular/core";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormsModule } from "@angular/forms";
-import { finalize, of } from "rxjs";
+import { combineLatest, finalize, of } from "rxjs";
 import { delay } from "rxjs/operators";
 import { ContentDisplayComponent } from "../../components/content-display/content-display.component";
-import { ContentType } from "../../model/content-type";
+import { ResultTableComponent } from "../../components/result-table/result-table.component";
+import { ContentKind } from "../../model/content-type";
 import { ConvertRequest, SourceUnit } from "../../model/convert";
-import { ORMType } from "../../model/orm-type";
+import { OrmTechnology } from "../../model/orm-type";
 import {
   RequiredContentDefinition,
   RequiredContentUnit,
 } from "../../model/required-content";
-import { ContentTypeToStringPipe } from "../../pipes/content-type-to-string.pipe";
 import { OrmService } from "../../services/orm.service";
-import { ResultTableComponent } from "../../components/result-table/result-table.component";
 import { SAMPLES } from "../../model/samples";
+
+interface EditableUnitState {
+  content: string;
+  language: string | null;
+}
 
 @Component({
   selector: "app-demo-page",
   standalone: true,
-  imports: [
-    CommonModule,
-    FormsModule,
-    ContentDisplayComponent,
-    ContentTypeToStringPipe,
-    ResultTableComponent,
-  ],
+  imports: [CommonModule, FormsModule, ContentDisplayComponent, ResultTableComponent],
   templateUrl: "./demo-page.component.html",
   styleUrls: ["./demo-page.component.less"],
 })
 export class DemoPageComponent implements OnInit, AfterViewInit {
   private destroyRef = inject(DestroyRef);
 
-  ormTypeEnum = ORMType;
-
   showResults = false;
-
-  /**
-   * Filtered list of ORM options (only enum names, excluding numeric reverse mappings).
-   */
-  readonly ormTypeOptions: { key: string; value: ORMType }[] = Object.keys(
-    ORMType
-  )
-    .filter((k) => isNaN(Number(k)))
-    .map((k) => ({ key: k, value: (ORMType as any)[k] as ORMType }));
-  contentTypeEnum = ContentType;
-
   isLoading = false;
-  // Animated dots for optimizing indicator
-  loadingDots: string = "";
+  loadingDots = "";
   private loadingInterval?: any;
 
-  sourceOrm: ORMType = ORMType.EFCore;
-  targetOrm: ORMType = ORMType.Dapper;
-  // Selected target ORMs for conversion (multiple selection)
-  targetOrms: ORMType[] = [];
-  text = "";
-  result = "";
-  error = "";
-  convertedUnits: SourceUnit[] = [];
-
+  orms: OrmTechnology[] = [];
+  contentKinds = new Map<string, ContentKind>();
   requiredContent: RequiredContentDefinition[] = [];
   displayUnits: RequiredContentUnit[] = [];
-  contentByUnit: { [unitId: string]: string } = {};
+  contentState: Record<number, EditableUnitState> = {};
 
   samples: Map<number, string> = new Map();
 
-  constructor(private ormService: OrmService, private elRef: ElementRef, private location: Location) {}
+  sourceOrmId: string | null = null;
+  targetOrmId: string | null = null;
+  selectedTargetOrms: Set<string> = new Set();
+
+  convertedUnits: SourceUnit[] = [];
+  error = "";
+
+  constructor(
+    private ormService: OrmService,
+    private elRef: ElementRef,
+    private location: Location
+  ) {}
 
   ngOnInit(): void {
-    this.ormService
-      .getRequiredContentAdvisor()
+    combineLatest([
+      this.ormService.getOrmTechnologies(),
+      this.ormService.getContentKinds(),
+      this.ormService.getRequiredContentAdvisor(),
+    ])
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((required) => {
+      .subscribe(([orms, kinds, required]) => {
+        this.orms = orms;
+        this.contentKinds = new Map(kinds.map((kind) => [kind.id, kind]));
         this.requiredContent = required;
+
+        this.sourceOrmId = this.resolveDefaultSourceOrm();
+        this.targetOrmId = this.resolveDefaultTargetOrm();
+        this.selectedTargetOrms = new Set(
+          this.orms.filter((o) => o.id !== this.sourceOrmId).map((o) => o.id)
+        );
+
         this.updateRequiredUnits();
       });
 
-    this.ormService
-      .getSamples()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((samples) => {
-        // this.samples = new Map(
-        //   Object.entries(samples).map(([k, v]) => [Number(k), v as string])
-        // );
-        this.samples = new Map();
-        this.samples.set(4, SAMPLES.entity);
-        this.samples.set(5, SAMPLES.query1);
-        this.samples.set(6, SAMPLES.query2);
-        this.samples.set(7, SAMPLES.query3);
-      });
+    this.samples = new Map([
+      [4, SAMPLES.entity],
+      [5, SAMPLES.query1],
+      [6, SAMPLES.query2],
+      [7, SAMPLES.query3],
+    ]);
   }
 
-  onSourceOrmChange(newOrm: string) {
-    this.sourceOrm = +newOrm as ORMType;
+  private resolveDefaultSourceOrm(): string | null {
+    const preferred = this.orms.find((o) => o.id === "ef-core");
+    return preferred?.id ?? this.orms[0]?.id ?? null;
+  }
+
+  private resolveDefaultTargetOrm(): string | null {
+    const preferred = this.orms.find((o) => o.id === "dapper");
+    if (preferred && preferred.id !== this.sourceOrmId) {
+      return preferred.id;
+    }
+
+    const alternative = this.orms.find((o) => o.id !== this.sourceOrmId);
+    return alternative?.id ?? this.sourceOrmId;
+  }
+
+  onSourceOrmChange(newId: string) {
+    this.sourceOrmId = newId;
     this.updateRequiredUnits();
   }
 
-  onTargetOrmChange(newOrm: string) {
-    this.targetOrm = +newOrm as ORMType;
+  onTargetOrmChange(newId: string) {
+    this.targetOrmId = newId;
     this.convertedUnits = [];
   }
 
-  /**
-   * Toggle selection of a target ORM framework.
-   * @param ormValue - The ORM type value
-   * @param checked - Whether the checkbox is checked
-   */
-  onTargetOrmToggle(ormValue: ORMType, checked: boolean): void {
-    // Logic for handling multiple target ORM selection to be implemented
+  onTargetOrmToggle(ormId: string, checked: boolean): void {
+    if (checked) {
+      this.selectedTargetOrms.add(ormId);
+    } else {
+      this.selectedTargetOrms.delete(ormId);
+    }
   }
 
   private updateRequiredUnits() {
-    this.displayUnits = [
-      ...(this.requiredContent.find((r) => r.ormType === this.sourceOrm)
-        ?.required ?? []),
-    ];
+    if (!this.sourceOrmId) {
+      this.displayUnits = [];
+      return;
+    }
 
-    this.displayUnits.forEach((u) => {
-      if (!(u.id in this.contentByUnit)) {
-        this.contentByUnit[u.id] = "";
+    const match = this.requiredContent.find((r) => r.ormId === this.sourceOrmId);
+    this.displayUnits = [...(match?.required ?? [])];
+
+    this.displayUnits.forEach((unit) => {
+      const descriptor = this.contentKinds.get(unit.contentKindId);
+      const defaultLanguage = descriptor?.defaultLanguage ?? descriptor?.languages[0] ?? null;
+      if (!this.contentState[unit.id]) {
+        this.contentState[unit.id] = { content: "", language: defaultLanguage };
+      } else if (!this.contentState[unit.id].language) {
+        this.contentState[unit.id].language = defaultLanguage;
       }
     });
   }
 
   convert(): void {
+    if (!this.sourceOrmId || !this.targetOrmId) {
+      return;
+    }
+
     this.isLoading = true;
-    // start dots animation: one dot per second up to three, then reset
     this.loadingDots = "";
     this.loadingInterval = setInterval(() => {
       if (this.loadingDots.length < 6) {
@@ -136,93 +164,130 @@ export class DemoPageComponent implements OnInit, AfterViewInit {
         this.loadingDots = "";
       }
     }, 500);
+
     const body: ConvertRequest = {
-      sourceOrm: this.sourceOrm,
-      targetOrm: this.targetOrm,
-      sources: this.displayUnits.map((u) => ({
-        contentType: u.contentType,
-        content: this.contentByUnit[u.id]!,
+      sourceOrmId: this.sourceOrmId,
+      targetOrmId: this.targetOrmId,
+      sources: this.displayUnits.map((unit) => ({
+        contentKindId: unit.contentKindId,
+        language:
+          this.contentState[unit.id]?.language ??
+          this.contentKinds.get(unit.contentKindId)?.defaultLanguage ??
+          null,
+        content: this.contentState[unit.id]?.content ?? "",
       })),
     };
 
     this.error = "";
     this.convertedUnits = [];
-    // use fake observable instead of real service
-    of(null)
+
+    of(body)
       .pipe(
         takeUntilDestroyed(this.destroyRef),
-        // artificial delay before completing
-        delay(20000),
+        delay(2000),
         finalize(() => {
           this.isLoading = false;
           this.showResults = true;
-          // stop dots animation
           if (this.loadingInterval) {
             clearInterval(this.loadingInterval);
             this.loadingInterval = undefined;
           }
           this.loadingDots = "";
-          // ensure textareas are resized after content is rendered
           setTimeout(() => this.resizeAll(), 0);
         })
       )
       .subscribe({
-        next: (r) => {
-          // this.convertedUnits = r.sources;
-          // demo content
+        next: () => {
           this.convertedUnits = [
             {
-              contentType: ContentType.CSharpEntity,
+              contentKindId: "csharp-entity",
+              language: "C#",
               content: SAMPLES.entityTarget,
             },
             {
-              contentType: ContentType.CSharpQuery,
+              contentKindId: "csharp-query",
+              language: "C#",
               content: SAMPLES.tquery1,
             },
             {
-              contentType: ContentType.CSharpQuery,
+              contentKindId: "csharp-query",
+              language: "C#",
               content: SAMPLES.tquery2,
             },
             {
-              contentType: ContentType.CSharpQuery,
+              contentKindId: "csharp-query",
+              language: "C#",
               content: SAMPLES.tquery3,
             },
           ];
-          this.result = "";
         },
-        error: (err) => (this.error = err.message),
+        error: (err) => (this.error = err.message ?? "Optimization failed"),
       });
   }
 
   fillWithSamples(): void {
-    this.displayUnits.forEach((u) => {
-      const sample = this.samples.get(u.id);
+    this.displayUnits.forEach((unit) => {
+      const sample = this.samples.get(unit.id);
       if (sample !== undefined) {
-        this.contentByUnit[u.id] = sample;
+        this.ensureState(unit.id, unit.contentKindId);
+        this.contentState[unit.id].content = sample;
       }
-      this.resizeAll();
     });
-    // resize after filling samples
     setTimeout(() => this.resizeAll(), 0);
   }
 
-  /**
-   * Visually checks all target framework checkboxes.
-   * @param container - The container element holding the checkboxes
-   */
-  selectAllTargets(container: HTMLElement): void {
-    const boxes = container.querySelectorAll(
-      'input[type="checkbox"]'
-    ) as NodeListOf<HTMLInputElement>;
-    boxes.forEach((b) => (b.checked = true));
+  updateContent(unit: RequiredContentUnit, value: string) {
+    this.ensureState(unit.id, unit.contentKindId);
+    this.contentState[unit.id].content = value;
   }
-  /**
-   * Auto-resize textareas to fit content, no vertical scroll.
-   */
-  @HostListener('input', ['$event'])
+
+  updateLanguage(unit: RequiredContentUnit, language: string) {
+    this.ensureState(unit.id, unit.contentKindId);
+    this.contentState[unit.id].language = language;
+  }
+
+  private ensureState(unitId: number, contentKindId: string) {
+    if (!this.contentState[unitId]) {
+      const descriptor = this.contentKinds.get(contentKindId);
+      this.contentState[unitId] = {
+        content: "",
+        language: descriptor?.defaultLanguage ?? descriptor?.languages[0] ?? null,
+      };
+    }
+  }
+
+  getContentKind(id: string): ContentKind | undefined {
+    return this.contentKinds.get(id);
+  }
+
+  get recommendedOrm(): OrmTechnology | undefined {
+    if (!this.targetOrmId) {
+      return undefined;
+    }
+
+    return this.orms.find((o) => o.id === this.targetOrmId);
+  }
+
+  getOrmDisplayName(id: string | null): string {
+    if (!id) {
+      return "";
+    }
+
+    return this.orms.find((o) => o.id === id)?.displayName ?? id;
+  }
+
+  selectAllTargets(): void {
+    this.selectedTargetOrms = new Set(this.orms.map((o) => o.id));
+  }
+
+  @HostListener("input", ["$event"])
   onInput(event: Event): void {
     const target = event.target as HTMLTextAreaElement;
-    if (target && target.tagName.toLowerCase() === 'textarea' && target.classList.contains('code-area')) {
+    if (
+      target &&
+      target.tagName.toLowerCase() === "textarea" &&
+      target.classList.contains("code-area")
+    ) {
       this.resizeTextArea(target);
     }
   }
@@ -231,23 +296,17 @@ export class DemoPageComponent implements OnInit, AfterViewInit {
     this.resizeAll();
   }
 
-  /**
-   * Resize a single textarea to fit its content.
-   */
   private resizeTextArea(textarea: HTMLTextAreaElement): void {
-    textarea.style.height = 'auto';
+    textarea.style.height = "auto";
     textarea.style.height = `${textarea.scrollHeight}px`;
   }
 
-  /**
-   * Resize all code-area textareas within this component.
-   */
   private resizeAll(): void {
-    const areas: NodeListOf<HTMLTextAreaElement> = this.elRef.nativeElement.querySelectorAll('textarea.code-area');
+    const areas: NodeListOf<HTMLTextAreaElement> =
+      this.elRef.nativeElement.querySelectorAll("textarea.code-area");
     areas.forEach((ta) => this.resizeTextArea(ta));
   }
-  
-  /** Navigate back to previous page */
+
   back(): void {
     this.location.back();
   }

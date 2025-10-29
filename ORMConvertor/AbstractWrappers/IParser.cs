@@ -1,10 +1,12 @@
-﻿using Model;
+using Model.Metadata;
 
 namespace AbstractWrappers;
 
 public interface IParser
 {
-    void Parse(string source);
+    string Id { get; }
 
-    bool CanParse(ConversionContentType contentType);
+    bool CanParse(ContentKindDescriptor contentKind, string? language = null);
+
+    void Parse(string source, string? language = null);
 }

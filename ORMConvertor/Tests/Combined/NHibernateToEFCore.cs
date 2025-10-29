@@ -86,7 +86,7 @@ public class NHibernateToEFCore
         mappingParser.Parse(sourceMapping);
 
         var results = builder.Build();
-        var entityOutput = results.Single(x => x.ContentType == ConversionContentType.CSharpEntity);
+        var entityOutput = results.Single(x => x.ContentKindId == "csharp-entity");
 
         string expectedEntity = """
         namespace NHibernateEntities;
@@ -145,7 +145,7 @@ public class NHibernateToEFCore
 
         Assert.Multiple(() =>
         {
-            Assert.Equal(ConversionContentType.CSharpEntity, entityOutput.ContentType);
+            Assert.Equal("csharp-entity", entityOutput.ContentKindId);
             Assert.Equal(expectedEntity, entityOutput.Content, ignoreLineEndingDifferences: true);
         });
     }

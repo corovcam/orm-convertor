@@ -1,5 +1,7 @@
-export enum ContentType {
-  CSharpEntity = 10,
-  CSharpQuery = 20,
-  XML = 30,
+export interface ContentKind {
+  id: string;
+  displayName: string;
+  statementKinds: string[];
+  languages: string[];
+  defaultLanguage: string;
 }

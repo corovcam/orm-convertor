@@ -3,7 +3,7 @@ using Model;
 namespace OrmConvertor.ServiceContracts;
 
 public record ConvertRequest(
-    ORMEnum SourceOrm,
-    ORMEnum TargetOrm,
+    string SourceOrmId,
+    string TargetOrmId,
     List<ConversionSource> Sources
 );

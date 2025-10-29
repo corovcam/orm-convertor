@@ -18,7 +18,7 @@ app.MapPost("/convert", (ConvertRequest req) =>
 {
     try
     {
-        var converted = ConversionHandler.Convert(req.SourceOrm, req.TargetOrm, req.Sources);
+        var converted = ConversionHandler.Convert(req.SourceOrmId, req.TargetOrmId, req.Sources);
         return Results.Ok(new ConvertResponse(converted));
     }
     catch (Exception e)

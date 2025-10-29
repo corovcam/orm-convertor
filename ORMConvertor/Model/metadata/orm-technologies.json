@@ -1,0 +1,29 @@
+[
+  {
+    "Id": "java-hibernate",
+    "DisplayName": "Java Hibernate",
+    "Description": "Hibernate ORM for Java",
+    "Languages": ["Java"],
+    "Paradigms": ["DataMapper", "ActiveRecord"],
+    "Serializers": ["Annotations", "XML"],
+    "SupportedContentKinds": ["java-entity"]
+  },
+  {
+    "Id": "python-sqlalchemy",
+    "DisplayName": "Python SQLAlchemy",
+    "Description": "SQLAlchemy ORM for Python",
+    "Languages": ["Python"],
+    "Paradigms": ["ActiveRecord", "DataMapper"],
+    "Serializers": ["Declarative"],
+    "SupportedContentKinds": ["python-model"]
+  },
+  {
+    "Id": "node-mongoose",
+    "DisplayName": "Node.js Mongoose",
+    "Description": "Mongoose ODM for Node.js",
+    "Languages": ["TypeScript", "JavaScript"],
+    "Paradigms": ["ActiveRecord"],
+    "Serializers": ["Schema"],
+    "SupportedContentKinds": ["typescript-schema"]
+  }
+]

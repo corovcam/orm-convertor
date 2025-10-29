@@ -7,6 +7,6 @@ namespace OrmConvertor.ServiceContracts.Advisor;
 /// </summary>
 public record AdvisorRunResult(
     int Objective,
-    IReadOnlyList<ORMEnum> SelectedFrameworks,
-    IReadOnlyDictionary<string, ORMEnum> QueryAssignments
+    IReadOnlyList<string> SelectedFrameworks,
+    IReadOnlyDictionary<string, string> QueryAssignments
 );

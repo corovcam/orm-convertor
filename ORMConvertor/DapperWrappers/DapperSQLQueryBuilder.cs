@@ -52,9 +52,11 @@ public class DapperSqlQueryBuilder : AbstractQueryBuilder
 
         var finalMethod = string.Format(template.Trim(), sourceEntity, indentedQuery.TrimStart(), sourceName);
         return [
-            new() {
+            new()
+            {
                 Content = finalMethod,
-                ContentType = ConversionContentType.CSharpQuery
+                ContentKindId = "csharp-query",
+                Language = "C#"
             }
         ];
     }
