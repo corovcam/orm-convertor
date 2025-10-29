@@ -1,29 +1,30 @@
 using System;
 using System.Collections.Generic;
-using Model;
 
 namespace AdvisorBenchmarking;
 
 internal static class BenchmarkHarnessBuilder
 {
-    private static readonly IReadOnlyDictionary<string, Func<IReadOnlyList<ConversionSource>, string, BenchmarkSource>> Generators =
-        new Dictionary<string, Func<IReadOnlyList<ConversionSource>, string, BenchmarkSource>>(StringComparer.OrdinalIgnoreCase)
+    private static readonly IReadOnlyDictionary<string, Func<BenchmarkExecutionContext, BenchmarkSource>> Generators =
+        new Dictionary<string, Func<BenchmarkExecutionContext, BenchmarkSource>>(StringComparer.OrdinalIgnoreCase)
         {
             ["dapper"] = DapperBenchmarkHarnessBuilder.Build,
             ["ef-core"] = EfCoreBenchmarkHarnessBuilder.Build
         };
 
-    public static BenchmarkSource Build(
-        string frameworkId,
-        IReadOnlyList<ConversionSource> sources,
-        string connectionString)
+    public static bool SupportsFramework(string frameworkId) =>
+        Generators.ContainsKey(frameworkId);
+
+    public static BenchmarkSource Build(BenchmarkExecutionContext context)
     {
-        if (!Generators.TryGetValue(frameworkId, out var generator))
+        if (!Generators.TryGetValue(context.FrameworkId, out var generator))
         {
-            throw new NotSupportedException($"Benchmark harness for framework {frameworkId} is not implemented yet.");
+            throw new NotSupportedException($"Benchmark harness for framework {context.FrameworkId} is not implemented yet.");
         }
 
-        return generator(sources, connectionString);
+        return generator(context);
     }
-}
 
+    public static IReadOnlyCollection<string> GetSupportedFrameworks() =>
+        Generators.Keys;
+}

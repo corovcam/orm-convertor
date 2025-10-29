@@ -1,0 +1,20 @@
+{
+  "default": {
+    "latencyMs": 7.8,
+    "memoryBytes": 4194304,
+    "consistencyScore": 0.82,
+    "monetaryCost": 0.08
+  },
+  "graph-traversal": {
+    "latencyMs": 4.5,
+    "memoryBytes": 3670016,
+    "consistencyScore": 0.86,
+    "monetaryCost": 0.07
+  },
+  "bulk-write": {
+    "latencyMs": 12.3,
+    "memoryBytes": 5767168,
+    "consistencyScore": 0.78,
+    "monetaryCost": 0.09
+  }
+}

@@ -11,5 +11,6 @@ public record AdvisorRunRequest(
     IReadOnlyList<AdvisorRunQuery> Queries,
     long MaxMemoryBytes,
     int MaxFrameworksToSelect,
-    IReadOnlyList<string>? TargetFrameworks = null
+    IReadOnlyList<string>? TargetFrameworks = null,
+    AdvisorWorkloadCharacteristics? Workload = null
 );

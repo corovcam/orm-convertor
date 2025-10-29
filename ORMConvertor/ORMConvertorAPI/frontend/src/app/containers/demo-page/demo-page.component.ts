@@ -21,6 +21,12 @@ import { ContentKind } from "../../model/content-type";
 import { ConvertRequest, SourceUnit } from "../../model/convert";
 import { OrmTechnology } from "../../model/orm-type";
 import {
+  AdvisorFrameworkDescriptor,
+  AdvisorMetricPreset,
+  AdvisorRunRequest,
+  AdvisorRunResult,
+} from "../../model/advisor";
+import {
   RequiredContentDefinition,
   RequiredContentUnit,
 } from "../../model/required-content";
@@ -55,6 +61,29 @@ export class DemoPageComponent implements OnInit, AfterViewInit {
 
   samples: Map<number, string> = new Map();
 
+  advisorFrameworks: AdvisorFrameworkDescriptor[] = [];
+  metricPresets: AdvisorMetricPreset[] = [];
+  selectedPresetId: string | null = null;
+  metricWeights = {
+    latencyWeight: 1,
+    memoryWeight: 1,
+    consistencyWeight: 1,
+    costWeight: 1,
+  };
+
+  maxMemoryKb = 2048;
+  maxFrameworksToSelect = 2;
+  concurrentUsers = 10;
+  readPercentage = 70;
+  writePercentage = 30;
+  consistencyPreference = "balanced";
+
+  queryWeights: Record<number, number> = {};
+
+  advisorIsRunning = false;
+  advisorError = "";
+  advisorResult: AdvisorRunResult | null = null;
+
   sourceOrmId: string | null = null;
   targetOrmId: string | null = null;
   selectedTargetOrms: Set<string> = new Set();
@@ -73,18 +102,26 @@ export class DemoPageComponent implements OnInit, AfterViewInit {
       this.ormService.getOrmTechnologies(),
       this.ormService.getContentKinds(),
       this.ormService.getRequiredContentAdvisor(),
+      this.ormService.getAdvisorFrameworks(),
+      this.ormService.getAdvisorMetricPresets(),
     ])
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe(([orms, kinds, required]) => {
+      .subscribe(([orms, kinds, required, frameworks, presets]) => {
         this.orms = orms;
         this.contentKinds = new Map(kinds.map((kind) => [kind.id, kind]));
         this.requiredContent = required;
+        this.advisorFrameworks = frameworks;
+        this.metricPresets = presets;
 
         this.sourceOrmId = this.resolveDefaultSourceOrm();
         this.targetOrmId = this.resolveDefaultTargetOrm();
         this.selectedTargetOrms = new Set(
-          this.orms.filter((o) => o.id !== this.sourceOrmId).map((o) => o.id)
+          (this.advisorFrameworks.length ? this.advisorFrameworks : this.orms)
+            .map((framework) => framework.id)
+            .filter((id) => id !== this.sourceOrmId)
         );
+
+        this.applyPreset(this.selectedPresetId ?? this.metricPresets[0]?.id ?? null);
 
         this.updateRequiredUnits();
       });
@@ -130,6 +167,26 @@ export class DemoPageComponent implements OnInit, AfterViewInit {
     }
   }
 
+  onPresetChange(presetId: string): void {
+    this.applyPreset(presetId);
+  }
+
+  updateMetricWeight(key: keyof typeof this.metricWeights, value: number): void {
+    const parsed = Number.isFinite(value) ? value : 0;
+    this.metricWeights = {
+      ...this.metricWeights,
+      [key]: Math.max(0, parsed),
+    };
+  }
+
+  updateQueryWeight(unitId: number, value: number): void {
+    const parsed = Math.max(1, Math.round(value));
+    this.queryWeights = {
+      ...this.queryWeights,
+      [unitId]: parsed,
+    };
+  }
+
   private updateRequiredUnits() {
     if (!this.sourceOrmId) {
       this.displayUnits = [];
@@ -148,6 +205,25 @@ export class DemoPageComponent implements OnInit, AfterViewInit {
         this.contentState[unit.id].language = defaultLanguage;
       }
     });
+  }
+
+  private applyPreset(presetId: string | null): void {
+    if (!presetId) {
+      return;
+    }
+
+    const match = this.metricPresets.find((preset) => preset.id === presetId);
+    if (!match) {
+      return;
+    }
+
+    this.selectedPresetId = match.id;
+    this.metricWeights = {
+      latencyWeight: match.weights.latency,
+      memoryWeight: match.weights.memory,
+      consistencyWeight: match.weights.consistency,
+      costWeight: match.weights.cost,
+    };
   }
 
   convert(): void {
@@ -246,6 +322,112 @@ export class DemoPageComponent implements OnInit, AfterViewInit {
     this.contentState[unit.id].language = language;
   }
 
+  private isQueryUnit(unit: RequiredContentUnit): boolean {
+    return unit.contentKindId.toLowerCase().includes("query");
+  }
+
+  private toSourceUnit(unit: RequiredContentUnit): SourceUnit {
+    this.ensureState(unit.id, unit.contentKindId);
+    const state = this.contentState[unit.id];
+    const descriptor = this.contentKinds.get(unit.contentKindId);
+    return {
+      contentKindId: unit.contentKindId,
+      language: state.language ?? descriptor?.defaultLanguage ?? null,
+      content: state.content,
+    };
+  }
+
+  private getQueryUnits(): RequiredContentUnit[] {
+    return this.displayUnits.filter((unit) => this.isQueryUnit(unit));
+  }
+
+  private buildAdvisorRequest(): AdvisorRunRequest | null {
+    if (!this.sourceOrmId) {
+      return null;
+    }
+
+    const entities = this.displayUnits
+      .filter((unit) => !this.isQueryUnit(unit))
+      .map((unit) => this.toSourceUnit(unit));
+
+    const queries = this.getQueryUnits().map((unit, index) => ({
+      id: String(unit.id ?? index),
+      query: this.toSourceUnit(unit),
+      weight: this.queryWeights[unit.id] ?? 1,
+      workload: {
+        workloadCategory: unit.description?.toLowerCase() ?? "default",
+        queryShape: unit.description ?? null,
+        estimatedResultSetSize: 0,
+      },
+    }));
+
+    if (queries.length === 0) {
+      return null;
+    }
+
+    return {
+      sourceOrmId: this.sourceOrmId,
+      entities,
+      queries,
+      maxMemoryBytes: Math.max(0, this.maxMemoryKb) * 1024,
+      maxFrameworksToSelect: Math.max(1, this.maxFrameworksToSelect),
+      targetFrameworks: Array.from(this.selectedTargetOrms),
+      workload: {
+        concurrentUsers: Math.max(1, this.concurrentUsers),
+        readPercentage: Math.max(0, Math.min(100, this.readPercentage)),
+        writePercentage: Math.max(0, Math.min(100, this.writePercentage)),
+        consistencyPreference: this.consistencyPreference,
+        metricWeights: { ...this.metricWeights },
+      },
+    };
+  }
+
+  runAdvisor(): void {
+    const request = this.buildAdvisorRequest();
+    if (!request) {
+      this.advisorError = "Provide entity and query definitions before running the advisor.";
+      return;
+    }
+
+    this.advisorIsRunning = true;
+    this.advisorError = "";
+    this.advisorResult = null;
+
+    this.ormService
+      .runAdvisor(request)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          this.advisorResult = result;
+          this.advisorIsRunning = false;
+        },
+        error: (err) => {
+          this.advisorError = err?.message ?? "Advisor run failed";
+          this.advisorIsRunning = false;
+        },
+      });
+  }
+
+  getFrameworkDisplayName(id: string | null): string {
+    if (!id) {
+      return "";
+    }
+
+    return (
+      this.orms.find((o) => o.id === id)?.displayName ??
+      this.advisorFrameworks.find((f) => f.id === id)?.displayName ??
+      id
+    );
+  }
+
+  getQueryWeight(unitId: number): number {
+    return this.queryWeights[unitId] ?? 1;
+  }
+
+  getQueryKey(unit: RequiredContentUnit): string {
+    return String(unit.id);
+  }
+
   private ensureState(unitId: number, contentKindId: string) {
     if (!this.contentState[unitId]) {
       const descriptor = this.contentKinds.get(contentKindId);
@@ -260,24 +442,11 @@ export class DemoPageComponent implements OnInit, AfterViewInit {
     return this.contentKinds.get(id);
   }
 
-  get recommendedOrm(): OrmTechnology | undefined {
-    if (!this.targetOrmId) {
-      return undefined;
-    }
-
-    return this.orms.find((o) => o.id === this.targetOrmId);
-  }
-
-  getOrmDisplayName(id: string | null): string {
-    if (!id) {
-      return "";
-    }
-
-    return this.orms.find((o) => o.id === id)?.displayName ?? id;
-  }
-
   selectAllTargets(): void {
-    this.selectedTargetOrms = new Set(this.orms.map((o) => o.id));
+    const frameworks = this.advisorFrameworks.length
+      ? this.advisorFrameworks.map((f) => f.id)
+      : this.orms.map((o) => o.id);
+    this.selectedTargetOrms = new Set(frameworks);
   }
 
   @HostListener("input", ["$event"])

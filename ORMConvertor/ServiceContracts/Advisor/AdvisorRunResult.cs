@@ -1,5 +1,3 @@
-using Model;
-
 namespace OrmConvertor.ServiceContracts.Advisor;
 
 /// <summary>
@@ -8,5 +6,6 @@ namespace OrmConvertor.ServiceContracts.Advisor;
 public record AdvisorRunResult(
     int Objective,
     IReadOnlyList<string> SelectedFrameworks,
-    IReadOnlyDictionary<string, string> QueryAssignments
+    IReadOnlyDictionary<string, string> QueryAssignments,
+    IReadOnlyDictionary<string, IReadOnlyDictionary<string, AdvisorBenchmarkMetrics>> BenchmarkSummaries
 );

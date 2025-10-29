@@ -34,26 +34,181 @@
     <h3>Constraints</h3>
     <div class="constraints">
       <label for="memory-kb" class="constraint-label">Memory (KB)</label>
-      <input id="memory-kb" class="constraint-input" type="number" placeholder="" />
+      <input
+        id="memory-kb"
+        class="constraint-input"
+        type="number"
+        min="0"
+        [(ngModel)]="maxMemoryKb"
+      />
       <label for="max-frameworks" class="constraint-label">Max Frameworks</label>
-      <input id="max-frameworks" class="constraint-input" type="number" placeholder="" />
+      <input
+        id="max-frameworks"
+        class="constraint-input"
+        type="number"
+        min="1"
+        [(ngModel)]="maxFrameworksToSelect"
+      />
+    </div>
+
+    <h3>Workload</h3>
+    <div class="workload">
+      <label>Concurrent Users</label>
+      <input type="number" min="1" [(ngModel)]="concurrentUsers" />
+      <label>Read %</label>
+      <input type="number" min="0" max="100" [(ngModel)]="readPercentage" />
+      <label>Write %</label>
+      <input type="number" min="0" max="100" [(ngModel)]="writePercentage" />
+      <label>Consistency</label>
+      <select [(ngModel)]="consistencyPreference">
+        <option value="balanced">Balanced</option>
+        <option value="eventual">Eventual</option>
+        <option value="strong">Strong</option>
+      </select>
+    </div>
+
+    <h3>Metric Weights</h3>
+    <label class="orm-label">
+      Preset
+      <select [(ngModel)]="selectedPresetId" (ngModelChange)="onPresetChange($event)">
+        <option *ngFor="let preset of metricPresets" [ngValue]="preset.id">
+          {{ preset.displayName }}
+        </option>
+      </select>
+    </label>
+    <div class="metric-grid">
+      <label>
+        Latency
+        <input
+          type="number"
+          min="0"
+          [ngModel]="metricWeights.latencyWeight"
+          (ngModelChange)="updateMetricWeight('latencyWeight', $event)"
+        />
+      </label>
+      <label>
+        Memory
+        <input
+          type="number"
+          min="0"
+          [ngModel]="metricWeights.memoryWeight"
+          (ngModelChange)="updateMetricWeight('memoryWeight', $event)"
+        />
+      </label>
+      <label>
+        Consistency
+        <input
+          type="number"
+          min="0"
+          [ngModel]="metricWeights.consistencyWeight"
+          (ngModelChange)="updateMetricWeight('consistencyWeight', $event)"
+        />
+      </label>
+      <label>
+        Cost
+        <input
+          type="number"
+          min="0"
+          [ngModel]="metricWeights.costWeight"
+          (ngModelChange)="updateMetricWeight('costWeight', $event)"
+        />
+      </label>
     </div>
 
     <h3>Target Frameworks</h3>
     <div class="target-frameworks">
-      @for (orm of orms; track orm.id) {
+      @for (framework of advisorFrameworks; track framework.id) {
         <label>
           <input
             type="checkbox"
-            [checked]="selectedTargetOrms.has(orm.id)"
-            (change)="onTargetOrmToggle(orm.id, $event.target.checked)"
+            [checked]="selectedTargetOrms.has(framework.id)"
+            (change)="onTargetOrmToggle(framework.id, $event.target.checked)"
           />
-          {{ orm.displayName }}
+          {{ framework.displayName }}
         </label>
       }
       <button class="select-all-btn" (click)="selectAllTargets()">Select All</button>
     </div>
 
+    <h3>Query Weights</h3>
+    <div class="query-weights" *ngIf="getQueryUnits().length; else noQueries">
+      <label *ngFor="let unit of getQueryUnits(); track unit.id">
+        {{ unit.description || unit.contentKindId }}
+        <input
+          type="number"
+          min="1"
+          [ngModel]="getQueryWeight(unit.id)"
+          (ngModelChange)="updateQueryWeight(unit.id, $event)"
+        />
+      </label>
+    </div>
+    <ng-template #noQueries>
+      <p class="demo-note">Add query definitions to evaluate workloads.</p>
+    </ng-template>
+
+    <button class="middle-button" (click)="runAdvisor()" [disabled]="advisorIsRunning || !sourceOrmId">
+      Run Advisor
+    </button>
+
+    <h3 *ngIf="advisorIsRunning" class="optimizing-text">Evaluating{{ loadingDots }}</h3>
+    <p *ngIf="advisorError" class="error">{{ advisorError }}</p>
+
+    @if (advisorResult as result) {
+      <div class="advisor-results">
+        <h3>Recommended Frameworks</h3>
+        <ul>
+          <li *ngFor="let framework of result.selectedFrameworks">
+            {{ getFrameworkDisplayName(framework) }}
+          </li>
+        </ul>
+        <h4>Assignments</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Query</th>
+              <th>Framework</th>
+              <th>Latency (ms)</th>
+              <th>Memory (bytes)</th>
+              <th>Consistency</th>
+              <th>Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let unit of getQueryUnits(); track unit.id">
+              <td>{{ unit.description || unit.contentKindId }}</td>
+              <td>{{ getFrameworkDisplayName(result.queryAssignments[getQueryKey(unit)]) }}</td>
+              <td>
+                {{
+                  result.benchmarkSummaries[getQueryKey(unit)]?.[result.queryAssignments[getQueryKey(unit)]]?.latencyMs ||
+                    "–"
+                }}
+              </td>
+              <td>
+                {{
+                  result.benchmarkSummaries[getQueryKey(unit)]?.[result.queryAssignments[getQueryKey(unit)]]?.memoryBytes ||
+                    "–"
+                }}
+              </td>
+              <td>
+                {{
+                  result.benchmarkSummaries[getQueryKey(unit)]?.[result.queryAssignments[getQueryKey(unit)]]?.consistencyScore ||
+                    "–"
+                }}
+              </td>
+              <td>
+                {{
+                  result.benchmarkSummaries[getQueryKey(unit)]?.[result.queryAssignments[getQueryKey(unit)]]?.monetaryCost ||
+                    "–"
+                }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    }
+
+    <hr />
+    <h3>Translation Preview</h3>
     <label class="orm-label">
       Target ORM
       <select [(ngModel)]="targetOrmId" (ngModelChange)="onTargetOrmChange($event)">
@@ -62,34 +217,16 @@
     </label>
 
     <button class="middle-button" (click)="convert()" [disabled]="isLoading || !sourceOrmId || !targetOrmId">
-      Optimize
+      Preview Translation
     </button>
 
-    <h3 *ngIf="isLoading" class="optimizing-text">
-      Optimizing{{ loadingDots }}
-    </h3>
+    <h3 *ngIf="isLoading" class="optimizing-text">Optimizing{{ loadingDots }}</h3>
 
     @if (showResults) {
       <div class="results">
         <app-result-table></app-result-table>
-        <div class="recommendation">
-          @if (recommendedOrm; as orm) {
-            <h3>Recommendation: {{ orm.displayName }}</h3>
-            <p class="demo-note">
-              Advisor scoring integration pending. Displaying your selected target as a placeholder
-              recommendation.
-            </p>
-          } @else {
-            <h3>Recommendation pending</h3>
-            <p class="demo-note">
-              Select target frameworks to preview advisor recommendations when scoring becomes
-              available.
-            </p>
-          }
-        </div>
       </div>
-      <hr />
-      <label class="orm-label">Results ({{ getOrmDisplayName(targetOrmId) }})</label>
+      <label class="orm-label">Results ({{ getFrameworkDisplayName(targetOrmId) }})</label>
 
       @for (unit of convertedUnits; track $index) {
         <app-content-display

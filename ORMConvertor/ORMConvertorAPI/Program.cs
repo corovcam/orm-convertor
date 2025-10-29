@@ -1,3 +1,4 @@
+using ORMConvertorAPI;
 using Yarp.ReverseProxy;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +12,7 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 
 app.MapGet("/healthz", () => Results.Ok("OK"));
+app.MapAdvisorEndpoints();
 app.MapReverseProxy();
 app.MapFallbackToFile("{*path:nonfile}", "index.html");
 
