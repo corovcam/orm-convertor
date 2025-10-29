@@ -1,6 +1,6 @@
 using Model;
 
-namespace ORMConvertorAPI.Dtos.Advisor;
+namespace OrmConvertor.ServiceContracts.Advisor;
 
 /// <summary>
 /// Minimal payload for kicking off an advisor optimisation run.

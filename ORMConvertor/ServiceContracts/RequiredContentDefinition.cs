@@ -1,9 +1,8 @@
-﻿using Model;
+using Model;
 
-namespace ORMConvertorAPI.Dtos;
+namespace OrmConvertor.ServiceContracts;
 
 public record RequiredContentDefinition(
-    ORMEnum OrmType, 
+    ORMEnum OrmType,
     List<RequiredContentUnit> Required
 );
-

@@ -1,15 +1,12 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using AdvisorBenchmarking;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Model;
-using AdvisorNamespace = Advisor.Advisor;
 using OrmConvertor;
-using ORMConvertorAPI.Dtos.Advisor;
+using OrmConvertor.ServiceContracts.Advisor;
+using AdvisorNamespace = Advisor.Advisor;
 
-namespace ORMConvertorAPI.Services;
+namespace AdvisorService.Services;
 
 public class AdvisorRunCoordinator : IAdvisorRunCoordinator
 {
@@ -42,10 +39,6 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
             ?? "Server=mssql_db,1433;Database=WideWorldImporters;User ID=sa;Password=Testingorms123;TrustServerCertificate=true;";
     }
 
-    /// <summary>
-    /// Validates the request, resolves target frameworks, and prepares translated artifacts.
-    /// Benchmark execution and optimisation will be plugged in subsequently.
-    /// </summary>
     public Task<AdvisorRunResult> RunAsync(
         AdvisorRunRequest request,
         CancellationToken cancellationToken = default)
@@ -89,9 +82,6 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
         return Task.FromResult(result);
     }
 
-    /// <summary>
-    /// Returns explicitly requested frameworks or falls back to the default supported list.
-    /// </summary>
     private static IReadOnlyList<ORMEnum> ResolveTargetFrameworks(AdvisorRunRequest request)
     {
         IEnumerable<ORMEnum> candidates = request.TargetFrameworks is { Count: > 0 } explicitTargets
@@ -106,9 +96,6 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
         return filtered;
     }
 
-    /// <summary>
-    /// Produces per-query conversion outputs for each target framework using the existing converter.
-    /// </summary>
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<ORMEnum, IReadOnlyList<ConversionSource>>> BuildTranslations(
         AdvisorRunRequest request,
         IReadOnlyList<ORMEnum> targetFrameworks,
@@ -147,9 +134,6 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
         return result;
     }
 
-    /// <summary>
-    /// Clones the shared entity inputs and appends the query so each conversion has its own copy.
-    /// </summary>
     private static List<ConversionSource> ComposeSources(
         IReadOnlyList<ConversionSource> entities,
         ConversionSource query)
@@ -164,9 +148,6 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
         return combined;
     }
 
-    /// <summary>
-    /// Creates a defensive copy of the provided conversion source.
-    /// </summary>
     private static ConversionSource Clone(ConversionSource source) =>
         new()
         {
@@ -284,5 +265,4 @@ public class AdvisorRunCoordinator : IAdvisorRunCoordinator
 
         return new AdvisorRunResult(objective, chosenFrameworks, assignments);
     }
-
 }

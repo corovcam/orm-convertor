@@ -1,8 +1,8 @@
-﻿using Model;
+using Model;
 
-namespace ORMConvertorAPI.Dtos;
+namespace OrmConvertor.ServiceContracts;
 
-internal record ConvertRequest(
+public record ConvertRequest(
     ORMEnum SourceOrm,
     ORMEnum TargetOrm,
     List<ConversionSource> Sources

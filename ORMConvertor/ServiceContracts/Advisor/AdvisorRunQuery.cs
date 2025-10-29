@@ -1,6 +1,6 @@
 using Model;
 
-namespace ORMConvertorAPI.Dtos.Advisor;
+namespace OrmConvertor.ServiceContracts.Advisor;
 
 /// <summary>
 /// Represents a single query participating in an advisor run.

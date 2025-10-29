@@ -1,5 +1,5 @@
 services:
-  ormconvertor:
+  gateway:
     build:
       context: .
       dockerfile: ORMConvertorAPI/Dockerfile
@@ -9,7 +9,41 @@ services:
       - ASPNETCORE_ENVIRONMENT=Development
     restart: unless-stopped
     depends_on:
+      - translation-service
+      - metadata-service
+      - advisor-service
+
+  translation-service:
+    build:
+      context: .
+      dockerfile: TranslationService/Dockerfile
+    ports:
+      - "5082:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    restart: unless-stopped
+
+  metadata-service:
+    build:
+      context: .
+      dockerfile: MetadataService/Dockerfile
+    ports:
+      - "5083:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    restart: unless-stopped
+
+  advisor-service:
+    build:
+      context: .
+      dockerfile: AdvisorService/Dockerfile
+    ports:
+      - "5084:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
       - mssql_db
+    restart: unless-stopped
 
   mssql_db:
     build:

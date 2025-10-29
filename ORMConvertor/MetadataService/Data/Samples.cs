@@ -1,6 +1,6 @@
-﻿using SampleData;
+using SampleData;
 
-namespace ORMConvertorAPI.Data;
+namespace MetadataService.Data;
 
 public static class Samples
 {

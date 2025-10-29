@@ -8,7 +8,7 @@ import { RequiredContentDefinition } from "../model/required-content";
 export class OrmService {
   constructor(private http: HttpClient) { }
 
-  private base = "/orm";
+  private base = "/api";
 
   getRequiredContent(): Observable<RequiredContentDefinition[]> {
     return this.http.get<RequiredContentDefinition[]>(`${this.base}/required-content`);

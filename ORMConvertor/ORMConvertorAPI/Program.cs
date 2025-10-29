@@ -1,45 +1,17 @@
-using AdvisorBenchmarking;
-using ORMConvertorAPI.Services;
+using Yarp.ReverseProxy;
 
-namespace ORMConvertorAPI;
+var builder = WebApplication.CreateBuilder(args);
 
-public class Program
-{
-    public static void Main(string[] args)
-    {
-        var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddReverseProxy()
+    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
-        // Add services to the container.
-        builder.Services.AddAuthorization();
-        builder.Services.AddSingleton<IBenchmarkExecutor, BenchmarkExecutor>();
-        builder.Services.AddSingleton<IAdvisorRunCoordinator, AdvisorRunCoordinator>();
+var app = builder.Build();
 
-        // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-        builder.Services.AddEndpointsApiExplorer();
-        builder.Services.AddSwaggerGen();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
-        var app = builder.Build();
+app.MapGet("/healthz", () => Results.Ok("OK"));
+app.MapReverseProxy();
+app.MapFallbackToFile("{*path:nonfile}", "index.html");
 
-        app.UsePathBase("/orm");
-
-        // Configure the HTTP request pipeline.
-        if (app.Environment.IsDevelopment())
-        {
-            app.UseSwagger();
-            app.UseSwaggerUI();
-        }
-
-        // app.UseHttpsRedirection();
-
-        app.UseAuthorization();
-
-        Endpoints.Map(app);
-
-        app.UseDefaultFiles();
-        app.UseStaticFiles();
-
-        app.MapFallbackToFile("{*path:nonfile}", "index.html");
-
-        app.Run();
-    }
-}
+app.Run();
