@@ -1,4 +1,6 @@
-﻿using Model.AbstractRepresentation.Enums;
+using System;
+using System.Collections.Generic;
+using Model.AbstractRepresentation.Enums;
 
 namespace Model.AbstractRepresentation;
 
@@ -19,4 +21,19 @@ public class Property
     public bool HasSetter { get; set; } = false;
 
     public string? DefaultValue { get; set; }
+
+    /// <summary>
+    /// Provider-neutral descriptors such as JSON schema fragments or CLR annotations.
+    /// </summary>
+    public Dictionary<string, object?> TypeDescriptors { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Additional property annotations gathered during parsing.
+    /// </summary>
+    public Dictionary<string, object?> Annotations { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Traversal hints (e.g., graph navigation info) keyed by provider.
+    /// </summary>
+    public Dictionary<string, object?> TraversalMetadata { get; } = new(StringComparer.OrdinalIgnoreCase);
 }

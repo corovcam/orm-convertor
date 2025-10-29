@@ -1,4 +1,6 @@
-﻿using Common.Convertors;
+﻿using System.Collections.Generic;
+using System.Linq;
+using Common.Convertors;
 using Model;
 using Model.AbstractRepresentation;
 using Model.AbstractRepresentation.Enums;
@@ -94,6 +96,10 @@ public abstract class AbstractEntityBuilder
 
         propertyMap.OtherDatabaseProperties["IsPrimaryKey"] = "true";
         propertyMap.OtherDatabaseProperties["PrimaryKeyStrategy"] = ((int)strategy).ToString();
+        propertyMap.Metadata["relational:isPrimaryKey"] = true;
+        propertyMap.Metadata["relational:primaryKeyStrategy"] = strategy;
+        property.TraversalMetadata["primaryKey"] = true;
+        property.Annotations["primaryKeyStrategy"] = strategy.ToString();
     }
 
     /// <summary>
@@ -130,12 +136,24 @@ public abstract class AbstractEntityBuilder
         propertyMap.OtherDatabaseProperties["IsForeignKey"] = "true";
         propertyMap.OtherDatabaseProperties["ForeignKeyCardinality"] = ((int)cardinality).ToString();
 
-        propertyMap.Relation = new Relation
+        var relation = new Relation
         {
-            Source = EntityMap?.Entity?.Name,
+            Source = EntityMap?.Node?.Name,
             Target = target,
             Cardinality = cardinality
         };
+
+        relation.Metadata["property"] = propertyName;
+        relation.Metadata["sourceNamespace"] = EntityMap.Node.Namespace;
+
+        propertyMap.Metadata["relational:isForeignKey"] = true;
+        propertyMap.Relation = relation;
+        property.TraversalMetadata["foreignKey"] = new Dictionary<string, object?>
+        {
+            ["target"] = target,
+            ["cardinality"] = cardinality.ToString()
+        };
+        EntityMap.Node.Relationships.Add(relation);
     }
 
     /// <summary>
@@ -180,20 +198,45 @@ public abstract class AbstractEntityBuilder
 
         var clrType = CLRTypeConvertor.FromString(baseTypeString);
 
+        var modifiers = OtherModifiers ?? [];
+
         var property = new Property
         {
             Name = propertyName,
             Type = new CLRTypeModel { CLRType = clrType, GenericParam = genericParameter },
             AccessModifier = AccessModifierConvertor.FromString(accessModifier),
-            OtherModifiers = OtherModifiers ?? [],
+            OtherModifiers = modifiers,
             HasGetter = hasGetter,
             HasSetter = hasSetter,
             DefaultValue = defaultValue,
             IsNullable = isNullable,
         };
 
+        property.TypeDescriptors["clr"] = new Dictionary<string, object?>
+        {
+            ["type"] = baseTypeString,
+            ["genericArgument"] = genericParameter
+        };
+
+        if (modifiers.Count > 0)
+        {
+            property.Annotations["modifiers"] = new List<string>(modifiers);
+        }
+
+        property.TraversalMetadata["nullable"] = isNullable;
+
         EntityMap.Entity.Properties.Add(property);
-        EntityMap.PropertyMaps.Add(new PropertyMap { Property = property });
+
+        var propertyMap = new PropertyMap { Property = property };
+        propertyMap.TypeDescriptors["clr"] = new Dictionary<string, object?>
+        {
+            ["type"] = baseTypeString,
+            ["genericArgument"] = genericParameter
+        };
+
+        propertyMap.IsNullable = isNullable;
+
+        EntityMap.PropertyMaps.Add(propertyMap);
     }
 
     /// <summary>
@@ -258,6 +301,7 @@ public abstract class AbstractEntityBuilder
                     break;
                 default:
                     propertyMap.OtherDatabaseProperties[kvp.Key] = kvp.Value;
+                    propertyMap.Metadata[$"relational:{kvp.Key}"] = kvp.Value;
                     break;
             }
         }
