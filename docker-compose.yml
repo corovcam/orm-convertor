@@ -1,0 +1,45 @@
+services:
+  gateway:
+    build:
+      context: services/gateway-dotnet
+    ports:
+      - "5072:8080"
+    depends_on:
+      - advisor
+      - translator-dotnet
+    restart: unless-stopped
+
+  advisor:
+    build:
+      context: services/advisor-python
+    ports:
+      - "5000:5000"
+    restart: unless-stopped
+
+  translator-dotnet:
+    build:
+      context: services/translator-dotnet
+      dockerfile: ORMConvertorAPI/Dockerfile
+    # No ports exposed to host, only internal network
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+    depends_on:
+      - mssql_db
+    restart: unless-stopped
+
+  mssql_db:
+    build:
+      context: services/translator-dotnet
+      dockerfile: database.Dockerfile
+    ports:
+      - "1444:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=Testingorms123
+      - MSSQL_PID=Developer
+    restart: unless-stopped
+    volumes:
+      - mssql_data:/var/opt/mssql
+
+volumes:
+  mssql_data:

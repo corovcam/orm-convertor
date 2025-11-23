@@ -70,6 +70,6 @@ RUN --mount=type=cache,target=/var/lib/apt,sharing=locked,id=apt-lists \
     apt-get install -y --no-install-recommends libglpk40
 
 COPY --from=dotnet-build /app/out .
-EXPOSE 5072
-ENV ASPNETCORE_URLS=http://+:5072
+EXPOSE 80
+ENV ASPNETCORE_URLS=http://+:80
 ENTRYPOINT ["dotnet", "ORMConvertorAPI.dll"]
