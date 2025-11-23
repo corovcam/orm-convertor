@@ -20,6 +20,7 @@ public class Program
 
         var app = builder.Build();
 
+        // Keep /orm path base to support legacy Angular frontend routing
         app.UsePathBase("/orm");
 
         // Configure the HTTP request pipeline.
@@ -28,8 +29,6 @@ public class Program
             app.UseSwagger();
             app.UseSwaggerUI();
         }
-
-        // app.UseHttpsRedirection();
 
         app.UseAuthorization();
 
